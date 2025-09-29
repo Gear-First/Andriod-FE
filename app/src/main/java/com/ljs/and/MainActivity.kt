@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.ljs.and.ui.InventoryScreen
 import com.ljs.and.ui.theme.AndTheme
 
 class MainActivity : ComponentActivity() {
@@ -20,9 +21,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             AndTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
+                    InventoryScreen(
                         modifier = Modifier.padding(innerPadding)
+
                     )
                 }
             }
@@ -36,12 +37,4 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
         text = "Hello $name!",
         modifier = modifier
     )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    AndTheme {
-        Greeting("Android")
-    }
 }

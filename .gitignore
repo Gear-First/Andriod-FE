@@ -1,0 +1,10 @@
+# Default ignored files
+/shelf/
+/.idea/workspace.xml
+.idea/
+*.iml
+
+# 기타 Android/Kotlin 관련
+*.apk
+local.properties
+.DS_Store # Mac 사용자용

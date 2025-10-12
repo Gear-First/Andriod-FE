@@ -1,16 +1,13 @@
-
 package com.ljs.and.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material3.Icon
-import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -28,6 +25,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.ljs.and.ui.receiving.ReceivingScreen
+import com.ljs.and.ui.releasing.ReleasingScreen
 
 sealed class BottomNavItem(
     val route: String,
@@ -109,20 +108,6 @@ fun NavigationGraph(navController: NavHostController) {
 fun HomeScreen() {
     Box(modifier = Modifier.fillMaxSize()) {
         Text(text = "홈 화면")
-    }
-}
-
-@Composable
-fun ReceivingScreen() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Text(text = "입고 화면")
-    }
-}
-
-@Composable
-fun ReleasingScreen() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Text(text = "출고 화면")
     }
 }
 

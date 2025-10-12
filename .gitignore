@@ -7,5 +7,6 @@
 # IDE 설정 및 개인 파일
 .idea/
 *.iml
+
 # Local properties file (SDK path)
 local.properties

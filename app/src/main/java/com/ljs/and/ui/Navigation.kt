@@ -21,30 +21,46 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.ljs.and.ui.common.BarcodeScanScreen
 import com.ljs.and.ui.receiving.ReceivingScreen
 import com.ljs.and.ui.releasing.ReleasingScreen
 
-sealed class BottomNavItem(
-    val route: String,
-    val title: String,
-    val icon: ImageVector
-) {
-    object Home : BottomNavItem("home", "홈", Icons.Filled.Home)
-    object Receiving : BottomNavItem("receiving", "입고", Icons.Filled.Add)
-    object Releasing : BottomNavItem("releasing", "출고", Icons.Filled.ExitToApp)
-    object Inventory : BottomNavItem("inventory", "재고", Icons.Filled.Search)
-    object More : BottomNavItem("more", "더보기", Icons.Filled.MoreVert)
+sealed class Screen(val route: String) {
+    object Home : Screen("home")
+    object Receiving : Screen("receiving")
+    object Releasing : Screen("releasing")
+    object Inventory : Screen("inventory")
+    object More : Screen("more")
+    object BarcodeScan : Screen("barcode_scan/{type}") {
+        fun createRoute(type: String) = "barcode_scan/$type"
+    }
 }
+
+private val bottomNavItems = listOf(
+    Screen.Home to Pair("홈", Icons.Filled.Home),
+    Screen.Receiving to Pair("입고", Icons.Filled.Add),
+    Screen.Releasing to Pair("출고", Icons.Filled.ExitToApp),
+    Screen.Inventory to Pair("재고", Icons.Filled.Search),
+    Screen.More to Pair("더보기", Icons.Filled.MoreVert)
+)
 
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
     Scaffold(
-        bottomBar = { BottomNavigationBar(navController = navController) }
+        bottomBar = {
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentRoute = navBackStackEntry?.destination?.route
+            if (currentRoute?.startsWith("barcode_scan/") == false) {
+                BottomNavigationBar(navController = navController)
+            }
+        }
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             NavigationGraph(navController = navController)
@@ -53,24 +69,19 @@ fun MainScreen() {
 }
 
 @Composable
-fun BottomNavigationBar(navController: NavHostController) {
-    val items = listOf(
-        BottomNavItem.Home,
-        BottomNavItem.Receiving,
-        BottomNavItem.Releasing,
-        BottomNavItem.Inventory,
-        BottomNavItem.More
-    )
+private fun BottomNavigationBar(navController: NavHostController) {
     NavigationBar {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
-        items.forEach { item ->
+
+        bottomNavItems.forEach { (screen, details) ->
+            val (title, icon) = details
             NavigationBarItem(
-                icon = { Icon(item.icon, contentDescription = item.title) },
-                label = { Text(item.title) },
-                selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
+                icon = { Icon(icon, contentDescription = title) },
+                label = { Text(title) },
+                selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                 onClick = {
-                    navController.navigate(item.route) {
+                    navController.navigate(screen.route) {
                         popUpTo(navController.graph.findStartDestination().id) {
                             saveState = true
                         }
@@ -84,43 +95,26 @@ fun BottomNavigationBar(navController: NavHostController) {
 }
 
 @Composable
-fun NavigationGraph(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = BottomNavItem.Home.route) {
-        composable(BottomNavItem.Home.route) {
-            HomeScreen()
-        }
-        composable(BottomNavItem.Receiving.route) {
-            ReceivingScreen()
-        }
-        composable(BottomNavItem.Releasing.route) {
-            ReleasingScreen()
-        }
-        composable(BottomNavItem.Inventory.route) {
-            InventoryScreen()
-        }
-        composable(BottomNavItem.More.route) {
-            MoreScreen()
+private fun NavigationGraph(navController: NavHostController) {
+    NavHost(navController = navController, startDestination = Screen.Home.route) {
+        composable(Screen.Home.route) { HomeScreen() }
+        composable(Screen.Receiving.route) { ReceivingScreen(navController = navController) }
+        composable(Screen.Releasing.route) { ReleasingScreen(navController = navController) }
+        composable(Screen.Inventory.route) { InventoryScreen() }
+        composable(Screen.More.route) { MoreScreen() }
+
+        composable(
+            route = Screen.BarcodeScan.route,
+            arguments = listOf(navArgument("type") { type = NavType.StringType })
+        ) { 
+            BarcodeScanScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }
 
-@Composable
-fun HomeScreen() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Text(text = "홈 화면")
-    }
-}
-
-@Composable
-fun InventoryScreen() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Text(text = "재고 화면")
-    }
-}
-
-@Composable
-fun MoreScreen() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Text(text = "더보기 화면")
-    }
-}
+// Placeholder screens
+@Composable fun HomeScreen() { Box(modifier = Modifier.fillMaxSize()) { Text(text = "홈 화면") } }
+@Composable fun InventoryScreen() { Box(modifier = Modifier.fillMaxSize()) { Text(text = "재고 화면") } }
+@Composable fun MoreScreen() { Box(modifier = Modifier.fillMaxSize()) { Text(text = "더보기 화면") } }

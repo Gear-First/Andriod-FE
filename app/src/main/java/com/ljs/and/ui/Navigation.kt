@@ -29,6 +29,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ljs.and.ui.common.BarcodeScanScreen
 import com.ljs.and.ui.common.ManualInputScreen
+import com.ljs.and.ui.more.MoreScreen
 import com.ljs.and.ui.receiving.ReceivingInspectionScreen
 import com.ljs.and.ui.receiving.ReceivingScreen
 import com.ljs.and.ui.releasing.ReleasingPickingScreen
@@ -113,7 +114,7 @@ private fun NavigationGraph(navController: NavHostController) {
         composable(Screen.Receiving.route) { ReceivingScreen(navController = navController) }
         composable(Screen.Releasing.route) { ReleasingScreen(navController = navController) }
         composable(Screen.Inventory.route) { InventoryScreen() }
-        composable(Screen.More.route) { MoreScreen() }
+        composable(Screen.More.route) { MoreScreen(navController = navController) }
 
         composable(
             route = Screen.BarcodeScan.route,
@@ -167,4 +168,3 @@ private fun NavigationGraph(navController: NavHostController) {
 // Placeholder screens
 @Composable fun HomeScreen() { Box(modifier = Modifier.fillMaxSize()) { Text(text = "홈 화면") } }
 @Composable fun InventoryScreen() { Box(modifier = Modifier.fillMaxSize()) { Text(text = "재고 화면") } }
-@Composable fun MoreScreen() { Box(modifier = Modifier.fillMaxSize()) { Text(text = "더보기 화면") } }

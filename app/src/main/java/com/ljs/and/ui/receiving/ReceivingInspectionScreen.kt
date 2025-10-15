@@ -65,7 +65,7 @@ fun ReceivingInspectionScreen(navController: NavController, supplier: String, da
                 onSearchVisibilityChange = { isSearchVisible = it },
                 onPerformSearch = {
                     if (searchQuery.isNotBlank()) {
-                        navController.navigate(Screen.SearchResult.createRoute(searchQuery))
+                        navController.navigate(Screen.SearchResult.createRoute("receiving", searchQuery))
                     }
                     isSearchVisible = false
                     focusManager.clearFocus()

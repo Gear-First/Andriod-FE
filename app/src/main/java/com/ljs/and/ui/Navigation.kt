@@ -54,8 +54,8 @@ sealed class Screen(val route: String) {
     object ReleasingPicking : Screen("releasing_picking/{customer}/{date}") {
         fun createRoute(customer: String, date: String) = "releasing_picking/$customer/$date"
     }
-    object SearchResult : Screen("search_result/{query}") {
-        fun createRoute(query: String) = "search_result/$query"
+    object SearchResult : Screen("search_result/{flowType}/{query}") {
+        fun createRoute(flowType: String, query: String) = "search_result/$flowType/$query"
     }
 }
 
@@ -169,10 +169,14 @@ private fun NavigationGraph(navController: NavHostController) {
 
         composable(
             route = Screen.SearchResult.route,
-            arguments = listOf(navArgument("query") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("flowType") { type = NavType.StringType },
+                navArgument("query") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             SearchResultScreen(
                 navController = navController,
+                flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving",
                 initialQuery = backStackEntry.arguments?.getString("query") ?: ""
             )
         }

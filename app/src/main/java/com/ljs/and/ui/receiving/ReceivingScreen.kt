@@ -17,7 +17,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material3.Button
@@ -31,6 +34,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -41,7 +46,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,9 +70,26 @@ val dummyPendingList = listOf(
 fun ReceivingScreen(navController: NavController, initialTabIndex: Int = 0) {
     var selectedTabIndex by remember { mutableStateOf(initialTabIndex) }
     val tabs = listOf("입고 대기", "완료")
+    var isSearchVisible by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
 
     Scaffold(
-        topBar = { ReceivingTopAppBar() },
+        topBar = { 
+            ReceivingTopAppBar(
+                isSearchVisible = isSearchVisible, 
+                searchQuery = searchQuery, 
+                onSearchQueryChange = { searchQuery = it }, 
+                onSearchVisibilityChange = { isSearchVisible = it },
+                onPerformSearch = {
+                    if (searchQuery.isNotBlank()) {
+                        navController.navigate(Screen.SearchResult.createRoute(searchQuery))
+                    }
+                    isSearchVisible = false
+                    focusManager.clearFocus()
+                }
+            ) 
+        },
         containerColor = Color.White
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
@@ -84,12 +108,59 @@ fun ReceivingScreen(navController: NavController, initialTabIndex: Int = 0) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReceivingTopAppBar() {
+fun ReceivingTopAppBar(
+    isSearchVisible: Boolean,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onSearchVisibilityChange: (Boolean) -> Unit,
+    onPerformSearch: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+
     TopAppBar(
-        title = { Text("입고", fontWeight = FontWeight.Bold) },
+        title = { 
+            if (isSearchVisible) {
+                TextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    placeholder = { Text("검색") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = {
+                        onPerformSearch()
+                        focusManager.clearFocus()
+                    }),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    )
+                )
+            } else {
+                Text("입고", fontWeight = FontWeight.Bold)
+            }
+        },
+        navigationIcon = {
+            if (isSearchVisible) {
+                IconButton(onClick = { onSearchVisibilityChange(false) }) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+            }
+        },
         actions = {
-            IconButton(onClick = { /* TODO: 검색 기능 구현 */ }) {
-                Icon(Icons.Filled.Search, contentDescription = "Search")
+            if (isSearchVisible) {
+                 IconButton(onClick = { 
+                     onPerformSearch()
+                     focusManager.clearFocus()
+                 }) {
+                    Icon(Icons.Filled.Search, contentDescription = "Search")
+                }
+            } else {
+                IconButton(onClick = { onSearchVisibilityChange(true) }) {
+                    Icon(Icons.Filled.Search, contentDescription = "Search")
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

@@ -34,6 +34,7 @@ import com.ljs.and.ui.receiving.ReceivingInspectionScreen
 import com.ljs.and.ui.receiving.ReceivingScreen
 import com.ljs.and.ui.releasing.ReleasingPickingScreen
 import com.ljs.and.ui.releasing.ReleasingScreen
+import com.ljs.and.ui.search.SearchResultScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -52,6 +53,9 @@ sealed class Screen(val route: String) {
     }
     object ReleasingPicking : Screen("releasing_picking/{customer}/{date}") {
         fun createRoute(customer: String, date: String) = "releasing_picking/$customer/$date"
+    }
+    object SearchResult : Screen("search_result/{query}") {
+        fun createRoute(query: String) = "search_result/$query"
     }
 }
 
@@ -160,6 +164,16 @@ private fun NavigationGraph(navController: NavHostController) {
                 navController = navController,
                 customer = backStackEntry.arguments?.getString("customer") ?: "",
                 date = backStackEntry.arguments?.getString("date") ?: ""
+            )
+        }
+
+        composable(
+            route = Screen.SearchResult.route,
+            arguments = listOf(navArgument("query") { type = NavType.StringType })
+        ) { backStackEntry ->
+            SearchResultScreen(
+                navController = navController,
+                initialQuery = backStackEntry.arguments?.getString("query") ?: ""
             )
         }
     }

@@ -10,15 +10,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,17 +52,24 @@ val dummyInspectingList = mutableStateListOf(
 @Composable
 fun ReceivingInspectionScreen(navController: NavController, supplier: String, date: String) {
     val allItemsCompleted = dummyInspectingList.all { it.status == "완료" }
+    var isSearchVisible by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("입고", fontWeight = FontWeight.Bold) },
-                actions = {
-                    IconButton(onClick = { /* TODO: Search */ }) {
-                        Icon(Icons.Filled.Search, contentDescription = "Search")
+            InspectionTopAppBar(
+                isSearchVisible = isSearchVisible,
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                onSearchVisibilityChange = { isSearchVisible = it },
+                onPerformSearch = {
+                    if (searchQuery.isNotBlank()) {
+                        navController.navigate(Screen.SearchResult.createRoute(searchQuery))
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                    isSearchVisible = false
+                    focusManager.clearFocus()
+                }
             )
         },
         bottomBar = {
@@ -82,6 +94,69 @@ fun ReceivingInspectionScreen(navController: NavController, supplier: String, da
             InspectionList(navController = navController, items = dummyInspectingList)
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InspectionTopAppBar(
+    isSearchVisible: Boolean,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onSearchVisibilityChange: (Boolean) -> Unit,
+    onPerformSearch: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+
+    TopAppBar(
+        title = { 
+            if (isSearchVisible) {
+                TextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    placeholder = { Text("검색") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = {
+                        onPerformSearch()
+                        focusManager.clearFocus()
+                    }),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    )
+                )
+            } else {
+                Text("입고", fontWeight = FontWeight.Bold)
+            }
+        },
+        navigationIcon = {
+            if (isSearchVisible) {
+                IconButton(onClick = { onSearchVisibilityChange(false) }) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+            }
+        },
+        actions = {
+            if (isSearchVisible) {
+                 IconButton(onClick = { 
+                     onPerformSearch()
+                     focusManager.clearFocus()
+                 }) {
+                    Icon(Icons.Filled.Search, contentDescription = "Search")
+                }
+            } else {
+                IconButton(onClick = { onSearchVisibilityChange(true) }) {
+                    Icon(Icons.Filled.Search, contentDescription = "Search")
+                }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.White
+        )
+    )
 }
 
 @Composable

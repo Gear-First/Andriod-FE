@@ -1,4 +1,4 @@
-package com.ljs.and.ui.screen
+package com.ljs.and.ui.home
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize

@@ -7,7 +7,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,163 +15,131 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
+import com.ljs.and.ui.Screen
+
 
 @Composable
-fun BarcodeScanScreen(onNavigateBack: () -> Unit) {
-    var showForm by remember { mutableStateOf(false) }
-
-    if (showForm) {
-        ScannedDataForm(onConfirm = onNavigateBack)
-    } else {
-        QrScanView(onManualEntry = { showForm = true }, onCancel = onNavigateBack)
-    }
-}
-
-@Composable
-private fun QrScanView(onManualEntry: () -> Unit, onCancel: () -> Unit) {
-    var selectedTabIndex by remember { mutableStateOf(1) }
+fun BarcodeScanScreen(navController: NavController) {
+    var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("입고", "출고")
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            // .padding(16.dp) // 👈 Column 전체에 적용되던 padding 제거
+            .background(Color.White),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("QR 인식", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "QR 인식",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            // 👇 제목에만 위쪽과 좌우 여백(padding) 추가
+            modifier = Modifier.padding(top = 16.dp, start = 16.dp, end = 16.dp) // 👈 변경됨
+        )
         Spacer(modifier = Modifier.height(24.dp))
 
-        TabRow(
-            selectedTabIndex = selectedTabIndex,
-            indicator = { tabPositions ->
-                TabRowDefaults.Indicator(
-                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                    height = 2.dp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTabIndex == index,
-                    onClick = { selectedTabIndex = index },
-                    text = { Text(title) },
-                    selectedContentColor = MaterialTheme.colorScheme.primary,
-                    unselectedContentColor = Color.Gray
-                )
-            }
-        }
+        ScanModeTabs(selectedTabIndex = selectedTabIndex, tabs = tabs, onTabSelected = { selectedTabIndex = it })
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .aspectRatio(1f)
-                .background(Color.LightGray.copy(alpha = 0.5f), RoundedCornerShape(16.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Build,
-                contentDescription = "Camera Icon",
-                modifier = Modifier.size(100.dp),
-                tint = Color.Gray
-            )
-        }
+        CameraPreview()
 
         Spacer(modifier = Modifier.weight(1f))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Button(
-                onClick = onCancel,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                border = BorderStroke(1.dp, Color.Gray)
-            ) {
-                Text("취소", color = Color.Black)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Button(
-                onClick = onManualEntry,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("수동 입력")
-            }
-        }
-    }
-}
-
-@Composable
-private fun ScannedDataForm(onConfirm: () -> Unit) {
-    var number by remember { mutableStateOf("IN - ABCD") }
-    var supplier by remember { mutableStateOf("현대 모비스") }
-    var part by remember { mutableStateOf("엔진 오일") }
-    var location by remember { mutableStateOf("A - 30") }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text("출고", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(24.dp))
-
-        LabeledTextField(label = "입고 번호", value = number, onValueChange = { number = it })
-        LabeledTextField(label = "공급 업체", value = supplier, onValueChange = { supplier = it })
-        LabeledTextField(label = "부품", value = part, onValueChange = { part = it })
-        LabeledTextField(label = "위치", value = location, onValueChange = { location = it })
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Button(
-            onClick = onConfirm,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("확인", fontSize = 16.sp)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LabeledTextField(label: String, value: String, onValueChange: (String) -> Unit) {
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.padding(bottom = 4.dp))
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp)
+        ScanActionButtons(
+            onCancel = { navController.popBackStack() },
+            onManualInput = { navController.navigate(Screen.ManualInput.route) }
         )
     }
 }
 
-@Preview(showBackground = true, name = "QR Scan View")
 @Composable
-fun QrScanPreview() {
-    MaterialTheme {
-        BarcodeScanScreen(onNavigateBack = {})
+fun ScanModeTabs(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (Int) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(0.7f),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        tabs.forEachIndexed { index, title ->
+            val isSelected = selectedTabIndex == index
+            val containerColor = if (isSelected) Color(0xFF007BFF) else Color.White
+            val contentColor = if (isSelected) Color.White else Color.Black
+            val border = if (isSelected) null else BorderStroke(1.dp, Color.LightGray)
+
+            Button(
+                onClick = { onTabSelected(index) },
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = containerColor,
+                    contentColor = contentColor
+                ),
+                border = border,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(title)
+            }
+        }
     }
 }
 
-@Preview(showBackground = true, name = "Scanned Data Form")
 @Composable
-fun ScannedDataFormPreview() {
+fun CameraPreview() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(0.8f)
+            .aspectRatio(1f)
+            .background(Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(16.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Build,
+            contentDescription = "Camera Icon",
+            modifier = Modifier.size(100.dp),
+            tint = Color.Gray.copy(alpha = 0.5f)
+        )
+    }
+}
+
+@Composable
+fun ScanActionButtons(onCancel: () -> Unit, onManualInput: () -> Unit) {
+    Row(
+        // 👇 하단 버튼 Row에만 좌우, 아래 여백(padding) 추가
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 16.dp), // 👈 변경됨
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        OutlinedButton(
+            onClick = onCancel,
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, Color.LightGray)
+        ) {
+            Text("취소", color = Color.Black)
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Button(
+            onClick = onManualInput,
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
+        ) {
+            Text("수동 입력", color = Color.White)
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun BarcodeScanScreenPreview() {
     MaterialTheme {
-        ScannedDataForm(onConfirm = {})
+        BarcodeScanScreen(navController = rememberNavController())
     }
 }

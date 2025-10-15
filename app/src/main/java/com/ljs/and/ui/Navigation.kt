@@ -28,6 +28,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ljs.and.ui.common.BarcodeScanScreen
+import com.ljs.and.ui.common.ManualInputScreen
+import com.ljs.and.ui.receiving.ReceivingInspectionScreen
 import com.ljs.and.ui.receiving.ReceivingScreen
 import com.ljs.and.ui.releasing.ReleasingScreen
 
@@ -37,8 +39,10 @@ sealed class Screen(val route: String) {
     object Releasing : Screen("releasing")
     object Inventory : Screen("inventory")
     object More : Screen("more")
-    object BarcodeScan : Screen("barcode_scan/{type}") {
-        fun createRoute(type: String) = "barcode_scan/$type"
+    object BarcodeScan : Screen("barcode_scan")
+    object ManualInput : Screen("manual_input")
+    object ReceivingInspection : Screen("receiving_inspection/{supplier}/{date}") {
+        fun createRoute(supplier: String, date: String) = "receiving_inspection/$supplier/$date"
     }
 }
 
@@ -57,7 +61,7 @@ fun MainScreen() {
         bottomBar = {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
-            if (currentRoute?.startsWith("barcode_scan/") == false) {
+            if (currentRoute != Screen.BarcodeScan.route && currentRoute != Screen.ManualInput.route) {
                 BottomNavigationBar(navController = navController)
             }
         }
@@ -103,12 +107,20 @@ private fun NavigationGraph(navController: NavHostController) {
         composable(Screen.Inventory.route) { InventoryScreen() }
         composable(Screen.More.route) { MoreScreen() }
 
+        composable(Screen.BarcodeScan.route) { BarcodeScanScreen(navController = navController) }
+        composable(Screen.ManualInput.route) { ManualInputScreen(navController = navController) }
+
         composable(
-            route = Screen.BarcodeScan.route,
-            arguments = listOf(navArgument("type") { type = NavType.StringType })
-        ) { 
-            BarcodeScanScreen(
-                onNavigateBack = { navController.popBackStack() }
+            route = Screen.ReceivingInspection.route,
+            arguments = listOf(
+                navArgument("supplier") { type = NavType.StringType },
+                navArgument("date") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            ReceivingInspectionScreen(
+                navController = navController,
+                supplier = backStackEntry.arguments?.getString("supplier") ?: "",
+                date = backStackEntry.arguments?.getString("date") ?: ""
             )
         }
     }

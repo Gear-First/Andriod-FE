@@ -19,16 +19,21 @@ import com.ljs.and.ui.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ManualInputScreen(navController: NavController) {
-    var receiptNumber by remember { mutableStateOf("IN - ABCD") }
-    var supplier by remember { mutableStateOf("현대 모비스") }
+fun ManualInputScreen(navController: NavController, flowType: String) {
+    val isReceiving = flowType == "receiving"
+    val title = if (isReceiving) "입고" else "출고"
+    val idLabel = if (isReceiving) "입고 번호" else "출고 번호"
+    val partnerLabel = if (isReceiving) "공급 업체" else "거래처"
+
+    var id by remember { mutableStateOf(if (isReceiving) "IN - ABCD" else "OUT - 1234") }
+    var partner by remember { mutableStateOf(if (isReceiving) "현대 모비스" else "현대 자동차") }
     var part by remember { mutableStateOf("엔진 오일") }
     var location by remember { mutableStateOf("A - 30") }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("입고", fontWeight = FontWeight.Bold) },
+                title = { Text(title, fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
@@ -37,8 +42,13 @@ fun ManualInputScreen(navController: NavController) {
                 onCancel = { navController.popBackStack() },
                 onComplete = {
                     // TODO: Pass data back and navigate
-                    // For now, just pop back to the previous screen
-                    navController.navigate(Screen.ReceivingInspection.route)
+                    val destination = if (isReceiving) Screen.ReceivingInspection.route else Screen.ReleasingPicking.route
+                    navController.navigate(destination) {
+                        // Avoid navigating to a new instance if it's already on the back stack.
+                        // This is a simplified example. You might need more complex logic.
+                        popUpTo(navController.graph.startDestinationId)
+                        launchSingleTop = true
+                    }
                 }
             )
         },
@@ -50,9 +60,9 @@ fun ManualInputScreen(navController: NavController) {
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            TitledTextField(label = "입고 번호", value = receiptNumber, onValueChange = { receiptNumber = it })
+            TitledTextField(label = idLabel, value = id, onValueChange = { id = it })
             Spacer(modifier = Modifier.height(16.dp))
-            TitledTextField(label = "공급 업체", value = supplier, onValueChange = { supplier = it })
+            TitledTextField(label = partnerLabel, value = partner, onValueChange = { partner = it })
             Spacer(modifier = Modifier.height(16.dp))
             TitledTextField(label = "부품", value = part, onValueChange = { part = it })
             Spacer(modifier = Modifier.height(16.dp))
@@ -122,6 +132,6 @@ fun ManualInputBottomBar(onCancel: () -> Unit, onComplete: () -> Unit) {
 @Composable
 fun ManualInputScreenPreview() {
     MaterialTheme {
-        ManualInputScreen(navController = rememberNavController())
+        ManualInputScreen(navController = rememberNavController(), flowType = "receiving")
     }
 }

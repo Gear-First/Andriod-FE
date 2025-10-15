@@ -1,17 +1,42 @@
 package com.ljs.and.ui.releasing
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,304 +48,139 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.ljs.and.ui.Screen
 
+// Data classes
+data class PendingReleasingNote(val customer: String, val date: String, val itemCount: Int)
 
-// Main Screen Composable
+// Dummy Data
+val dummyPendingList = listOf(
+    PendingReleasingNote("현대 자동차", "2025.10.13", 15),
+    PendingReleasingNote("기아", "2025.10.14", 8)
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReleasingScreen(navController: NavController) {
-    var selectedTabIndex by remember { mutableStateOf(0) }
+fun ReleasingScreen(navController: NavController, initialTabIndex: Int = 0) {
+    var selectedTabIndex by remember { mutableStateOf(initialTabIndex) }
+    val tabs = listOf("출고 대기", "완료")
 
     Scaffold(
-        topBar = { ReleasingTopAppBar() }
+        topBar = { ReleasingTopAppBar() },
+        containerColor = Color.White
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
-            ReleasingStatusTabs(
+            ReleasingTabRow(
                 selectedTabIndex = selectedTabIndex,
+                tabs = tabs,
                 onTabSelected = { selectedTabIndex = it }
             )
             when (selectedTabIndex) {
-                0 -> RequestedScreen()
-                1 -> PickingScreen(navController = navController)
-                2 -> ReleaseCompletedScreen()
+                0 -> PendingReleasingScreen(navController = navController, pendingList = dummyPendingList)
+                1 -> ReleasingCompletedScreen(navController = navController)
             }
         }
     }
 }
 
-// Top App Bar
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReleasingTopAppBar() {
     TopAppBar(
         title = { Text("출고", fontWeight = FontWeight.Bold) },
         actions = {
-            IconButton(onClick = { /* 검색 */ }) {
+            IconButton(onClick = { /* TODO: 검색 기능 구현 */ }) {
                 Icon(Icons.Filled.Search, contentDescription = "Search")
             }
-            IconButton(onClick = { /* 정렬/필터 */ }) {
-                Icon(Icons.Default.Menu, contentDescription = "Sort/Filter")
-            }
-        }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.White
+        )
     )
 }
 
-// Status Tabs
 @Composable
-fun ReleasingStatusTabs(selectedTabIndex: Int, onTabSelected: (Int) -> Unit) {
-    val statuses = listOf("출고 요청", "피킹 중", "완료")
-    TabRow(selectedTabIndex = selectedTabIndex) {
-        statuses.forEachIndexed { index, title ->
-            Tab(
-                selected = selectedTabIndex == index,
-                onClick = { onTabSelected(index) },
-                text = { Text(title) }
-            )
-        }
-    }
-}
-
-// 1. Requested Screen
-@Composable
-fun RequestedScreen() {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+fun ReleasingTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (Int) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        items(dummyRequestedList) { item ->
-            RequestedCard(item = item)
+        tabs.forEachIndexed { index, title ->
+            val isSelected = selectedTabIndex == index
+            val containerColor = if (isSelected) Color(0xFF007BFF) else Color.White
+            val contentColor = if (isSelected) Color.White else Color.Black
+            val border = if (isSelected) null else BorderStroke(1.dp, Color.LightGray)
+
+            Button(
+                onClick = { onTabSelected(index) },
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = containerColor,
+                    contentColor = contentColor
+                ),
+                border = border,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            ) {
+                Text(title)
+            }
+        }
+    }
+}
+
+
+@Composable
+fun PendingReleasingScreen(navController: NavController, pendingList: List<PendingReleasingNote>) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(bottom = 16.dp)
+    ) {
+        items(pendingList) { item ->
+            PendingReleasingCard(item = item, onStartPicking = {
+                navController.navigate(Screen.ReleasingPicking.createRoute(item.customer, item.date))
+            })
         }
     }
 }
 
 @Composable
-fun RequestedCard(item: ReleaseRequest) {
+fun PendingReleasingCard(item: PendingReleasingNote, onStartPicking: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth()
+            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp)),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Default.Build,
-                    contentDescription = "Delivery Truck",
+                    imageVector = Icons.Outlined.Build,
+                    contentDescription = "Shipping Truck",
                     modifier = Modifier.size(60.dp),
                     tint = Color.Gray
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text("요청 업체: ${item.requester}", fontWeight = FontWeight.Bold)
+                    Text("거래처: ${item.customer}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text("날짜: ${item.date}", fontSize = 14.sp, color = Color.Gray)
                     Text("품목: ${item.itemCount}개", fontSize = 14.sp, color = Color.Gray)
                 }
             }
-            Button(
-                onClick = { /* 출고 시작 */ },
-                shape = RoundedCornerShape(20.dp)
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedButton(
+                onClick = onStartPicking,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, Color.LightGray)
             ) {
-                Text("출고 시작")
+                Text("피킹 시작", color = Color.Black)
             }
         }
-    }
-}
-
-// 2. Picking Screen
-@Composable
-fun PickingScreen(navController: NavController) {
-    val requester = "현대 모비스"
-    val date = "2025.10.13"
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(text = "요청 업체: $requester", fontSize = 14.sp, color = Color.Gray)
-            Text(text = "날짜: $date", fontSize = 14.sp, color = Color.Gray)
-        }
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(dummyPickingList) { item ->
-                PickingItemCard(item = item, onClick = {
-                    navController.navigate(Screen.BarcodeScan.createRoute("releasing"))
-                })
-            }
-        }
-        Button(
-            onClick = { /* 피킹 완료 */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("피킹 완료", fontSize = 16.sp)
-        }
-    }
-}
-
-@Composable
-fun PickingItemCard(item: PickingItem, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("[출고 번호] ${item.id}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("공급 업체: ${item.supplier}", fontSize = 13.sp)
-                Text("부품: ${item.partName}", fontSize = 13.sp)
-                Text("위치: ${item.location}, 수량: ${item.quantity}", fontSize = 13.sp)
-                Text("담당자: ${item.manager}", fontSize = 13.sp)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Placeholder for an image
-                Spacer(modifier = Modifier.height(8.dp))
-                StatusPillButton(status = item.status)
-            }
-        }
-    }
-}
-
-// 3. Completed Screen
-@Composable
-fun ReleaseCompletedScreen() {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(dummyReleaseCompletedList) { item ->
-            ReleaseCompletedCard(item = item)
-        }
-    }
-}
-
-@Composable
-fun ReleaseCompletedCard(item: CompletedRelease) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Build,
-                    contentDescription = "Delivery Truck",
-                    modifier = Modifier.size(60.dp),
-                    tint = Color.Gray
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text("공급 업체: ${item.supplier}", fontWeight = FontWeight.Bold)
-                    Text("품목: ${item.itemCount}개", fontSize = 14.sp, color = Color.Gray)
-                    Text("담당자: ${item.manager}", fontSize = 14.sp, color = Color.Gray)
-                }
-            }
-            StatusPillButton(status = "완료")
-        }
-    }
-}
-
-@Composable
-fun StatusPillButton(status: String) {
-    val (containerColor, contentColor, borderColor) = when (status) {
-        "완료" -> Triple(Color(0xFFF0F0F0), Color.Black, Color.Transparent)
-        "피킹 중" -> Triple(Color.White, Color.Red, Color.Red)
-        else -> Triple(Color.Gray, Color.White, Color.Transparent)
-    }
-
-    Button(
-        onClick = { },
-        shape = RoundedCornerShape(20.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor
-        ),
-        border = if (borderColor != Color.Transparent) BorderStroke(1.dp, borderColor) else null
-    ) {
-        Text(status)
-    }
-}
-
-
-// Data classes
-data class ReleaseRequest(val requester: String, val date: String, val itemCount: Int)
-data class PickingItem(
-    val id: String,
-    val supplier: String,
-    val partName: String,
-    val location: String,
-    val quantity: Int,
-    val manager: String,
-    val status: String
-)
-data class CompletedRelease(val supplier: String, val itemCount: Int, val manager: String)
-
-// Dummy Data
-val dummyRequestedList = listOf(
-    ReleaseRequest("현대 모비스", "2025.10.13", 23),
-    ReleaseRequest("현대 오토에버", "2025.10.13", 23)
-)
-
-val dummyPickingList = listOf(
-    PickingItem("OUT - ABCD", "현대 모비스", "엔진 오일", "A-03-2", 3, "이지수", "피킹 중"),
-    PickingItem("OUT - ABCD", "현대 모비스", "엔진 오일", "A-03-2", 3, "이지수", "완료")
-)
-
-val dummyReleaseCompletedList = listOf(
-    CompletedRelease("현대 모비스", 23, "이지수")
-)
-
-
-
-//----------------------------------------------------------
-
-// Preview
-@Preview(showBackground = true, name = "Requested Screen")
-@Composable
-fun RequestedScreenPreview() {
-    MaterialTheme {
-        RequestedScreen()
-    }
-}
-
-@Preview(showBackground = true, name = "Picking Screen")
-@Composable
-fun PickingScreenPreview() {
-     MaterialTheme {
-        PickingScreen(navController = rememberNavController())
-    }
-}
-
-@Preview(showBackground = true, name = "Completed Screen")
-@Composable
-fun ReleaseCompletedScreenPreview() {
-     MaterialTheme {
-        ReleaseCompletedScreen()
     }
 }
 

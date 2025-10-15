@@ -31,6 +31,7 @@ import com.ljs.and.ui.common.BarcodeScanScreen
 import com.ljs.and.ui.common.ManualInputScreen
 import com.ljs.and.ui.receiving.ReceivingInspectionScreen
 import com.ljs.and.ui.receiving.ReceivingScreen
+import com.ljs.and.ui.releasing.ReleasingPickingScreen
 import com.ljs.and.ui.releasing.ReleasingScreen
 
 sealed class Screen(val route: String) {
@@ -39,10 +40,17 @@ sealed class Screen(val route: String) {
     object Releasing : Screen("releasing")
     object Inventory : Screen("inventory")
     object More : Screen("more")
-    object BarcodeScan : Screen("barcode_scan")
-    object ManualInput : Screen("manual_input")
+    object BarcodeScan : Screen("barcode_scan/{flowType}") {
+        fun createRoute(flowType: String) = "barcode_scan/$flowType"
+    }
+    object ManualInput : Screen("manual_input/{flowType}") {
+        fun createRoute(flowType: String) = "manual_input/$flowType"
+    }
     object ReceivingInspection : Screen("receiving_inspection/{supplier}/{date}") {
         fun createRoute(supplier: String, date: String) = "receiving_inspection/$supplier/$date"
+    }
+    object ReleasingPicking : Screen("releasing_picking/{customer}/{date}") {
+        fun createRoute(customer: String, date: String) = "releasing_picking/$customer/$date"
     }
 }
 
@@ -107,8 +115,24 @@ private fun NavigationGraph(navController: NavHostController) {
         composable(Screen.Inventory.route) { InventoryScreen() }
         composable(Screen.More.route) { MoreScreen() }
 
-        composable(Screen.BarcodeScan.route) { BarcodeScanScreen(navController = navController) }
-        composable(Screen.ManualInput.route) { ManualInputScreen(navController = navController) }
+        composable(
+            route = Screen.BarcodeScan.route,
+            arguments = listOf(navArgument("flowType") { type = NavType.StringType })
+        ) { backStackEntry ->
+            BarcodeScanScreen(
+                navController = navController,
+                flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving"
+            )
+        }
+        composable(
+            route = Screen.ManualInput.route,
+            arguments = listOf(navArgument("flowType") { type = NavType.StringType })
+        ) { backStackEntry ->
+            ManualInputScreen(
+                navController = navController,
+                flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving"
+            )
+        }
 
         composable(
             route = Screen.ReceivingInspection.route,
@@ -120,6 +144,20 @@ private fun NavigationGraph(navController: NavHostController) {
             ReceivingInspectionScreen(
                 navController = navController,
                 supplier = backStackEntry.arguments?.getString("supplier") ?: "",
+                date = backStackEntry.arguments?.getString("date") ?: ""
+            )
+        }
+
+        composable(
+            route = Screen.ReleasingPicking.route,
+            arguments = listOf(
+                navArgument("customer") { type = NavType.StringType },
+                navArgument("date") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            ReleasingPickingScreen(
+                navController = navController,
+                customer = backStackEntry.arguments?.getString("customer") ?: "",
                 date = backStackEntry.arguments?.getString("date") ?: ""
             )
         }

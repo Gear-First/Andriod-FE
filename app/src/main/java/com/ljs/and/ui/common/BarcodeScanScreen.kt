@@ -21,8 +21,9 @@ import com.ljs.and.ui.Screen
 
 
 @Composable
-fun BarcodeScanScreen(navController: NavController) {
-    var selectedTabIndex by remember { mutableStateOf(0) }
+fun BarcodeScanScreen(navController: NavController, flowType: String) {
+    val initialTabIndex = if (flowType == "releasing") 1 else 0
+    var selectedTabIndex by remember { mutableStateOf(initialTabIndex) }
     val tabs = listOf("입고", "출고")
 
     Column(
@@ -51,7 +52,7 @@ fun BarcodeScanScreen(navController: NavController) {
 
         ScanActionButtons(
             onCancel = { navController.popBackStack() },
-            onManualInput = { navController.navigate(Screen.ManualInput.route) }
+            onManualInput = { navController.navigate(Screen.ManualInput.createRoute(if (selectedTabIndex == 0) "receiving" else "releasing")) }
         )
     }
 }
@@ -140,6 +141,6 @@ fun ScanActionButtons(onCancel: () -> Unit, onManualInput: () -> Unit) {
 @Composable
 fun BarcodeScanScreenPreview() {
     MaterialTheme {
-        BarcodeScanScreen(navController = rememberNavController())
+        BarcodeScanScreen(navController = rememberNavController(), flowType = "receiving")
     }
 }

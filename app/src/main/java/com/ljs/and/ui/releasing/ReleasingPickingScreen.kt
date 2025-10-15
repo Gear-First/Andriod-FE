@@ -1,5 +1,4 @@
-
-package com.ljs.and.ui.receiving
+package com.ljs.and.ui.releasing
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -27,9 +26,9 @@ import androidx.navigation.compose.rememberNavController
 import com.ljs.and.R
 import com.ljs.and.ui.Screen
 
-data class InspectingItem(
+data class PickingItem(
     val id: String,
-    val supplier: String,
+    val customer: String,
     val partName: String,
     val location: String,
     val quantity: Int,
@@ -38,20 +37,20 @@ data class InspectingItem(
     val imageUrl: Int? = null
 )
 
-val dummyInspectingList = mutableStateListOf(
-    InspectingItem("IN - ABCD", "현대 모비스", "엔진 오일", "A-03-2", 3, "이지수", "검수 중", R.drawable.ic_launcher_background),
-    InspectingItem("IN - ABCD", "현대 모비스", "엔진 오일", "A-03-2", 3, "이지수", "완료", R.drawable.ic_launcher_background)
+val dummyPickingList = mutableStateListOf(
+    PickingItem("OUT - 1234", "현대 자동차", "브레이크 패드", "B-02-1", 5, "이지수", "피킹 중", R.drawable.ic_launcher_background),
+    PickingItem("OUT - 5678", "기아", "엔진 커버", "B-02-3", 2, "이지수", "완료", R.drawable.ic_launcher_background)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReceivingInspectionScreen(navController: NavController, supplier: String, date: String) {
-    val allItemsCompleted = dummyInspectingList.all { it.status == "완료" }
+fun ReleasingPickingScreen(navController: NavController, customer: String, date: String) {
+    val allItemsCompleted = dummyPickingList.all { it.status == "완료" }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("입고", fontWeight = FontWeight.Bold) },
+                title = { Text("출고", fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = { /* TODO: Search */ }) {
                         Icon(Icons.Filled.Search, contentDescription = "Search")
@@ -61,12 +60,12 @@ fun ReceivingInspectionScreen(navController: NavController, supplier: String, da
             )
         },
         bottomBar = {
-            InspectionBottomBar(
-                onCancel = {  navController.navigate(Screen.Receiving.route) },
+            PickingBottomBar(
+                onCancel = {  navController.navigate(Screen.Releasing.route) },
                 onComplete = {
                     if (allItemsCompleted) {
-                        navController.navigate(Screen.Receiving.route) { // Navigate back to the main Receiving screen
-                            popUpTo(Screen.Receiving.route) { inclusive = true }
+                        navController.navigate(Screen.Releasing.route) { // Navigate back to the main Releasing screen
+                            popUpTo(Screen.Releasing.route) { inclusive = true }
                         }
                     } else {
                         // Optional: Show a message to the user that not all items are completed
@@ -78,14 +77,14 @@ fun ReceivingInspectionScreen(navController: NavController, supplier: String, da
         containerColor = Color.White
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding).fillMaxSize().background(Color.White) ) {
-            InspectionHeader(supplier = supplier, date = date)
-            InspectionList(navController = navController, items = dummyInspectingList)
+            PickingHeader(customer = customer, date = date)
+            PickingList(navController = navController, items = dummyPickingList)
         }
     }
 }
 
 @Composable
-fun InspectionHeader(supplier: String, date: String) {
+fun PickingHeader(customer: String, date: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -94,7 +93,7 @@ fun InspectionHeader(supplier: String, date: String) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text("공급 업체: $supplier", fontSize = 14.sp, color = Color.Gray)
+            Text("거래처: $customer", fontSize = 14.sp, color = Color.Gray)
             Text("날짜: $date", fontSize = 14.sp, color = Color.Gray)
         }
         OutlinedButton(
@@ -102,24 +101,24 @@ fun InspectionHeader(supplier: String, date: String) {
             shape = RoundedCornerShape(20.dp),
             border = BorderStroke(1.dp, Color(0xFF007BFF))
         ) {
-            Text("검수 중", color = Color(0xFF007BFF))
+            Text("피킹 중", color = Color(0xFF007BFF))
         }
     }
 }
 
 @Composable
-fun InspectionList(navController: NavController, items: MutableList<InspectingItem>) {
+fun PickingList(navController: NavController, items: MutableList<PickingItem>) {
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(items) { item ->
-            InspectionItemCard(
+            PickingItemCard(
                 item = item,
                 status = item.status,
                 onClick = {
                     if (item.status != "완료") {
-                        navController.navigate(Screen.BarcodeScan.createRoute("receiving"))
+                        navController.navigate(Screen.BarcodeScan.createRoute("releasing"))
                     }
                 }
             )
@@ -128,7 +127,7 @@ fun InspectionList(navController: NavController, items: MutableList<InspectingIt
 }
 
 @Composable
-fun InspectionItemCard(item: InspectingItem, status: String, onClick: () -> Unit) {
+fun PickingItemCard(item: PickingItem, status: String, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -143,8 +142,8 @@ fun InspectionItemCard(item: InspectingItem, status: String, onClick: () -> Unit
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("[입고 번호] ${item.id}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("공급 업체: ${item.supplier}", fontSize = 13.sp)
+                Text("[출고 번호] ${item.id}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("거래처: ${item.customer}", fontSize = 13.sp)
                 Text("부품: ${item.partName}", fontSize = 13.sp)
                 Text("위치: ${item.location}, 수량: ${item.quantity}", fontSize = 13.sp)
                 Text("담당자: ${item.manager}", fontSize = 13.sp)
@@ -167,12 +166,12 @@ fun InspectionItemCard(item: InspectingItem, status: String, onClick: () -> Unit
 
 @Composable
 fun StatusButton(status: String, onClick: () -> Unit) {
-    val (text, color, textColor) = if (status == "검수 중") {
-        Triple("검수 중", Color.White, Color.Red)
+    val (text, color, textColor) = if (status == "피킹 중") {
+        Triple("피킹 중", Color.White, Color.Red)
     } else {
         Triple("완료", Color(0xFFE0E0E0), Color.Black)
     }
-    val border = BorderStroke(1.dp, if (status == "검수 중") Color.Red else Color.LightGray)
+    val border = BorderStroke(1.dp, if (status == "피킹 중") Color.Red else Color.LightGray)
 
     OutlinedButton(
         onClick = onClick,
@@ -187,7 +186,7 @@ fun StatusButton(status: String, onClick: () -> Unit) {
 
 
 @Composable
-fun InspectionBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isCompleteEnabled: Boolean) {
+fun PickingBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isCompleteEnabled: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -216,15 +215,15 @@ fun InspectionBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isComplete
             ),
             enabled = isCompleteEnabled
         ) {
-            Text("검수 완료", color = Color.White)
+            Text("피킹 완료", color = Color.White)
         }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun ReceivingInspectionScreenPreview() {
+fun ReleasingPickingScreenPreview() {
     MaterialTheme {
-        ReceivingInspectionScreen(navController = rememberNavController(), supplier = "현대 모비스", date = "2025.10.13")
+        ReleasingPickingScreen(navController = rememberNavController(), customer = "현대 자동차", date = "2025.10.13")
     }
 }

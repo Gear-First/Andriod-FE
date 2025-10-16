@@ -109,7 +109,7 @@ fun SearchResultScreen(navController: NavController, flowType: String, initialQu
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(searchResults) {
-                result ->
+                    result ->
                 when (result) {
                     is SearchResult.Receiving -> ReceivingResultCard(result.item)
                     is SearchResult.Releasing -> ReleasingResultCard(result.item)
@@ -167,10 +167,10 @@ fun ReleasingResultCard(item: ReleasingSearchResultItem) {
             }
             Spacer(modifier = Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                 Text("담당자", fontSize = 12.sp, color = Color.Gray)
-                 Text(item.manager, fontSize = 14.sp)
-                 Spacer(modifier = Modifier.height(8.dp))
-                 val (text, color, textColor) = when (item.status) {
+                Text("담당자", fontSize = 12.sp, color = Color.Gray)
+                Text(item.manager, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                val (text, color, textColor) = when (item.status) {
                     "피킹 중" -> Triple("피킹 중", Color.White, Color.Red)
                     else -> Triple("완료", Color(0xFFE0E0E0), Color.Black)
                 }

@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.ljs.and.ui.Screen
+import com.ljs.and.ui.receiving.CompletedList
+import com.ljs.and.ui.receiving.dummyCompletedList
 
 data class CompletedReleasing(val customer: String, val date: String, val itemCount: Int, val manager: String)
 
@@ -47,97 +49,98 @@ val dummyReleasingCompletedList = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReleasingCompletedScreen(navController: NavController) {
-    var isSearchVisible by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    val focusManager = LocalFocusManager.current
-
-    Scaffold(
-        topBar = {
-            ReleasingCompletedTopAppBar(
-                isSearchVisible = isSearchVisible,
-                searchQuery = searchQuery,
-                onSearchQueryChange = { searchQuery = it },
-                onSearchVisibilityChange = { isSearchVisible = it },
-                onPerformSearch = {
-                    if (searchQuery.isNotBlank()) {
-                        navController.navigate(Screen.SearchResult.createRoute("releasing", searchQuery))
-                    }
-                    isSearchVisible = false
-                    focusManager.clearFocus()
-                }
-            )
-        },
-        containerColor = Color.White
-    ) { innerPadding ->
-        CompletedReleasingList(
-            items = dummyReleasingCompletedList,
-            modifier = Modifier.padding(innerPadding)
-        )
-    }
+    CompletedList(items = dummyCompletedList)
+//    var isSearchVisible by remember { mutableStateOf(false) }
+//    var searchQuery by remember { mutableStateOf("") }
+//    val focusManager = LocalFocusManager.current
+//
+//    Scaffold(
+//        topBar = {
+//            ReleasingCompletedTopAppBar(
+//                isSearchVisible = isSearchVisible,
+//                searchQuery = searchQuery,
+//                onSearchQueryChange = { searchQuery = it },
+//                onSearchVisibilityChange = { isSearchVisible = it },
+//                onPerformSearch = {
+//                    if (searchQuery.isNotBlank()) {
+//                        navController.navigate(Screen.SearchResult.createRoute("releasing", searchQuery))
+//                    }
+//                    isSearchVisible = false
+//                    focusManager.clearFocus()
+//                }
+//            )
+//        },
+//        containerColor = Color.White
+//    ) { innerPadding ->
+//        CompletedReleasingList(
+//            items = dummyReleasingCompletedList,
+//            modifier = Modifier.padding(innerPadding)
+//        )
+//    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ReleasingCompletedTopAppBar(
-    isSearchVisible: Boolean,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onSearchVisibilityChange: (Boolean) -> Unit,
-    onPerformSearch: () -> Unit
-) {
-    val focusManager = LocalFocusManager.current
-
-    TopAppBar(
-        title = { 
-            if (isSearchVisible) {
-                TextField(
-                    value = searchQuery,
-                    onValueChange = onSearchQueryChange,
-                    placeholder = { Text("검색") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = {
-                        onPerformSearch()
-                        focusManager.clearFocus()
-                    }),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    )
-                )
-            } else {
-                Text("완료", fontWeight = FontWeight.Bold)
-            }
-        },
-        navigationIcon = {
-            if (isSearchVisible) {
-                IconButton(onClick = { onSearchVisibilityChange(false) }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                }
-            }
-        },
-        actions = {
-            if (isSearchVisible) {
-                 IconButton(onClick = { 
-                     onPerformSearch()
-                     focusManager.clearFocus()
-                 }) {
-                    Icon(Icons.Filled.Search, contentDescription = "Search")
-                }
-            } else {
-                IconButton(onClick = { onSearchVisibilityChange(true) }) {
-                    Icon(Icons.Filled.Search, contentDescription = "Search")
-                }
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White
-        )
-    )
-}
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//fun ReleasingCompletedTopAppBar(
+//    isSearchVisible: Boolean,
+//    searchQuery: String,
+//    onSearchQueryChange: (String) -> Unit,
+//    onSearchVisibilityChange: (Boolean) -> Unit,
+//    onPerformSearch: () -> Unit
+//) {
+//    val focusManager = LocalFocusManager.current
+//
+//    TopAppBar(
+//        title = {
+//            if (isSearchVisible) {
+//                TextField(
+//                    value = searchQuery,
+//                    onValueChange = onSearchQueryChange,
+//                    placeholder = { Text("검색") },
+//                    modifier = Modifier.fillMaxWidth(),
+//                    singleLine = true,
+//                    keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
+//                    keyboardActions = KeyboardActions(onSearch = {
+//                        onPerformSearch()
+//                        focusManager.clearFocus()
+//                    }),
+//                    colors = TextFieldDefaults.colors(
+//                        focusedContainerColor = Color.Transparent,
+//                        unfocusedContainerColor = Color.Transparent,
+//                        focusedIndicatorColor = Color.Transparent,
+//                        unfocusedIndicatorColor = Color.Transparent
+//                    )
+//                )
+//            } else {
+//                Text("완료", fontWeight = FontWeight.Bold)
+//            }
+//        },
+//        navigationIcon = {
+//            if (isSearchVisible) {
+//                IconButton(onClick = { onSearchVisibilityChange(false) }) {
+//                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+//                }
+//            }
+//        },
+//        actions = {
+//            if (isSearchVisible) {
+//                 IconButton(onClick = {
+//                     onPerformSearch()
+//                     focusManager.clearFocus()
+//                 }) {
+//                    Icon(Icons.Filled.Search, contentDescription = "Search")
+//                }
+//            } else {
+//                IconButton(onClick = { onSearchVisibilityChange(true) }) {
+//                    Icon(Icons.Filled.Search, contentDescription = "Search")
+//                }
+//            }
+//        },
+//        colors = TopAppBarDefaults.topAppBarColors(
+//            containerColor = Color.White
+//        )
+//    )
+//}
 
 @Composable
 fun CompletedReleasingList(items: List<CompletedReleasing>, modifier: Modifier = Modifier) {

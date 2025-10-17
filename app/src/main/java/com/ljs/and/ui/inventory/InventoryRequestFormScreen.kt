@@ -1,6 +1,16 @@
+
 package com.ljs.and.ui.inventory
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -9,18 +19,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
+import com.ljs.and.ui.common.TitledTextField
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InventoryRequestFormScreen(
-    navController: NavHostController
-) {
+fun InventoryRequestFormScreen(navController: NavHostController) {
     var itemName by remember { mutableStateOf("IN - ABCD") }
     var supplier by remember { mutableStateOf("현대 모비스") }
     var quantity by remember { mutableStateOf("10") }
@@ -37,88 +50,97 @@ fun InventoryRequestFormScreen(
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
-        }
-    ) { paddingValues ->
+        },
+        bottomBar = {
+            Button(
+                onClick = { navController.navigateUp() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
+            ) {
+                Text("신청", color = Color.White)
+            }
+        },
+        containerColor = Color.White
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(innerPadding)
+                .padding(16.dp)
         ) {
-            Column {
-                FormTextField(label = "품목명", value = itemName, onValueChange = { itemName = it })
-                Spacer(modifier = Modifier.height(16.dp))
-                FormTextField(label = "공급 업체", value = supplier, onValueChange = { supplier = it })
-                Spacer(modifier = Modifier.height(16.dp))
-                FormTextField(label = "요청 수량", value = quantity, onValueChange = { quantity = it })
-                Spacer(modifier = Modifier.height(24.dp))
+            TitledTextField(label = "품목명", value = itemName, onValueChange = { itemName = it })
+            Spacer(modifier = Modifier.height(16.dp))
+            TitledTextField(label = "공급 업체", value = supplier, onValueChange = { supplier = it })
+            Spacer(modifier = Modifier.height(16.dp))
+            TitledTextField(label = "요청 수량", value = quantity, onValueChange = { quantity = it })
+            Spacer(modifier = Modifier.height(24.dp))
 
-                Text("요청 사유", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row {
-                    reasonOptions.forEach { reason ->
-                        Row(
-                            Modifier
-                                .selectable(
-                                    selected = (reason == selectedReason),
-                                    onClick = { selectedReason = reason }
-                                )
-                                .padding(end = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
+            Text("요청 사유", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+            Row {
+                reasonOptions.forEach { reason ->
+                    Row(
+                        modifier = Modifier
+                            .selectable(
                                 selected = (reason == selectedReason),
                                 onClick = { selectedReason = reason }
                             )
-                            Text(
-                                text = reason,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
-                        }
+                            .padding(end = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (reason == selectedReason),
+                            onClick = { selectedReason = reason },
+                            colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF007BFF))
+                        )
+                        Text(reason)
                     }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
-
-                FormTextField(label = "담당자", value = manager, onValueChange = { manager = it }, readOnly = true)
-                Spacer(modifier = Modifier.height(16.dp))
-                FormTextField(label = "요청일", value = requestDate, onValueChange = { /* Read-only */ }, readOnly = true)
             }
-
-            Button(
-                onClick = { /* TODO: Submit form and navigate up */ navController.navigateUp() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("신청", modifier = Modifier.padding(vertical = 8.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("담당자", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                TitledTextField(label = "", value = manager, onValueChange = { manager = it }, modifier = Modifier.width(200.dp))
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("요청일", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                TitledTextField(label = "", value = requestDate, onValueChange = {}, modifier = Modifier.width(200.dp))
             }
         }
     }
 }
 
 @Composable
-fun FormTextField(label: String, value: String, onValueChange: (String) -> Unit, readOnly: Boolean = false) {
-    Column {
-        Text(label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
+fun TitledTextField(label: String, value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier) {
+    var isFocused by remember { mutableStateOf(false) }
+    val borderColor = if (isFocused || value.isNotEmpty()) Color(0xFF007BFF) else Color.LightGray
+
+    Column(modifier = modifier) {
+        if (label.isNotEmpty()) {
+            Text(label, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+        }
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focusState ->
+                    isFocused = focusState.isFocused
+                },
             shape = RoundedCornerShape(8.dp),
-            readOnly = readOnly,
-            enabled = !readOnly,
-            colors = TextFieldDefaults.colors(
-                disabledTextColor = LocalContentColor.current.copy(LocalContentColor.current.alpha),
-                disabledIndicatorColor = MaterialTheme.colorScheme.outline,
-                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF007BFF),
+                unfocusedBorderColor = borderColor
+            ),
+            singleLine = true
         )
     }
 }
@@ -127,6 +149,7 @@ fun FormTextField(label: String, value: String, onValueChange: (String) -> Unit,
 @Preview(showBackground = true)
 @Composable
 fun InventoryRequestFormScreenPreview() {
-    // Fake NavController for preview
-    // InventoryRequestFormScreen(navController = NavHostController(LocalContext.current))
+    MaterialTheme {
+        InventoryRequestFormScreen(navController = rememberNavController())
+    }
 }

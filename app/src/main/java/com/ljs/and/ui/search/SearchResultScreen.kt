@@ -221,9 +221,11 @@ fun ReleasingResultCard(item: ReleasingSearchResultItem) {
 @Composable
 fun InventoryResultCard(item: InventorySearchResultItem) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(12.dp)
+        modifier = Modifier.fillMaxWidth()
+            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),

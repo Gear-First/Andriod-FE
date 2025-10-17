@@ -15,6 +15,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -22,11 +24,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.ljs.and.R
+import com.ljs.and.data.ItemStatus
 
 sealed class SearchResult {
     data class Receiving(val item: ReceivingSearchResultItem) : SearchResult()
     data class Releasing(val item: ReleasingSearchResultItem) : SearchResult()
+    data class Inventory(val item: InventorySearchResultItem) : SearchResult()
 }
 
 data class ReceivingSearchResultItem(
@@ -47,6 +53,17 @@ data class ReleasingSearchResultItem(
     val imageUrl: Int? = null
 )
 
+data class InventorySearchResultItem(
+    val receiptNumber: String,
+    val supplier: String,
+    val name: String,
+    val location: String,
+    val currentStock: Int,
+    val imageUrl: String,
+    val status: ItemStatus,
+    val manager: String? = null
+)
+
 val dummyReceivingResults = listOf(
     ReceivingSearchResultItem("P001", "노트북", 5, "15인치"),
     ReceivingSearchResultItem("P002", "마우스", 10, "무선"),
@@ -57,6 +74,14 @@ val dummyReleasingResults = listOf(
     ReleasingSearchResultItem("OUT - ABCD", "현대 모비스", "엔진 오일", "A-03-2", 3, "이지수", "완료", R.drawable.ic_launcher_background),
 )
 
+val dummyInventoryResults = listOf(
+    InventorySearchResultItem("IN - ABCD", "현대 모비스", "엔진 오일", "A-03-2", 3, "https://picsum.photos/200", ItemStatus.COMPLETED),
+    InventorySearchResultItem("IN - ABCD", "현대 모비스", "엔진 오일", "A-03-2", 3, "https://picsum.photos/200", ItemStatus.DEFECTIVE, "이지수"),
+    InventorySearchResultItem("IN - EFGH", "보쉬", "브레이크 패드", "B-01-1", 10, "https://picsum.photos/201", ItemStatus.NORMAL),
+    InventorySearchResultItem("IN - IJKL", "한국타이어", "타이어", "C-07-5", 8, "https://picsum.photos/202", ItemStatus.LOW_STOCK),
+    InventorySearchResultItem("IN - IJKL", "한국타이어", "타이어", "C-07-5", 8, "https://picsum.photos/202", ItemStatus.LOW_STOCK)
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchResultScreen(navController: NavController, flowType: String, initialQuery: String) {
@@ -64,6 +89,7 @@ fun SearchResultScreen(navController: NavController, flowType: String, initialQu
     val searchResults = when (flowType) {
         "receiving" -> dummyReceivingResults.map { SearchResult.Receiving(it) }
         "releasing" -> dummyReleasingResults.map { SearchResult.Releasing(it) }
+        "inventory" -> dummyInventoryResults.map { SearchResult.Inventory(it) }
         else -> emptyList()
     }
 
@@ -101,11 +127,14 @@ fun SearchResultScreen(navController: NavController, flowType: String, initialQu
                 )
             )
         }
-    ) { innerPadding ->
+    ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier
-                .padding(innerPadding)
-                .padding(16.dp),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = paddingValues.calculateTopPadding() + 12.dp,
+//                bottom = paddingValues.calculateBottomPadding() + 12.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(searchResults) {
@@ -113,6 +142,7 @@ fun SearchResultScreen(navController: NavController, flowType: String, initialQu
                 when (result) {
                     is SearchResult.Receiving -> ReceivingResultCard(result.item)
                     is SearchResult.Releasing -> ReleasingResultCard(result.item)
+                    is SearchResult.Inventory -> InventoryResultCard(result.item)
                 }
             }
         }
@@ -188,6 +218,56 @@ fun ReleasingResultCard(item: ReleasingSearchResultItem) {
     }
 }
 
+@Composable
+fun InventoryResultCard(item: InventorySearchResultItem) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("[입고 번호] ${item.receiptNumber}", fontSize = 12.sp, color = Color.Gray)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("공급 업체: ${item.supplier}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("부품: ${item.name}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("위치: ${item.location}, 수량: ${item.currentStock}", fontSize = 14.sp)
+                item.manager?.let {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("담당자: $it", fontSize = 14.sp, color = Color.Red)
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(item.imageUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = item.name,
+                    modifier = Modifier.size(60.dp),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { /* TODO */ },
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (item.status == ItemStatus.DEFECTIVE) Color.Red else Color.LightGray
+                    ),
+//                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
+                ) {
+                    Text(item.status.displayName, color = Color.White)
+                }
+            }
+        }
+    }
+}
+
 
 @Preview(showBackground = true, name = "Receiving Result")
 @Composable
@@ -199,4 +279,10 @@ fun ReceivingResultScreenPreview() {
 @Composable
 fun ReleasingResultScreenPreview() {
     SearchResultScreen(navController = rememberNavController(), flowType = "releasing", initialQuery = "현대 모비스")
+}
+
+@Preview(showBackground = true, name = "Inventory Result")
+@Composable
+fun InventoryResultScreenPreview() {
+    SearchResultScreen(navController = rememberNavController(), flowType = "inventory", initialQuery = "엔진 오일")
 }

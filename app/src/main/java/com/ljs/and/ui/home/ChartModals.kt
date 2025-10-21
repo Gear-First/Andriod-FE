@@ -2,6 +2,7 @@ package com.ljs.and.ui.home
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,19 +10,26 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.Popup
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 
 // 1. Inventory Donut Chart Modal
 data class InventoryItemData(val name: String, val quantity: Int, val color: Color)
@@ -69,15 +77,43 @@ fun InventoryChartModal(onDismiss: () -> Unit) {
 @Composable
 fun DonutChart(data: List<InventoryItemData>, total: Int) {
     val totalValue = data.sumOf { it.quantity }.toFloat()
+    var hoveredItem by remember { mutableStateOf<InventoryItemData?>(null) }
+    var touchPosition by remember { mutableStateOf<Offset?>(null) }
+
+    val angles = data.map { (it.quantity / totalValue) * 360f }
+    val cumulativeAngles = angles.runningFold(0f) { acc, angle -> acc + angle }
+
     Box(modifier = Modifier.size(200.dp), contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        Canvas(modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    touchPosition = it
+                    val cartesian = Offset(it.x - size.width / 2, it.y - size.height / 2)
+                    val distance = cartesian.getDistance()
+                    if (distance > size.width / 2 - 60f && distance < size.width / 2) {
+                        var touchAngle = Math.toDegrees(atan2(cartesian.y, cartesian.x).toDouble()).toFloat()
+                        if (touchAngle < -90) touchAngle += 360
+                        touchAngle -= -90 // align with canvas start angle
+                        if (touchAngle < 0) touchAngle += 360
+
+                        val index = cumulativeAngles.indexOfFirst { angle -> touchAngle < angle }
+                        hoveredItem = if (index != -1 && index > 0) data[index - 1] else null
+                    } else {
+                        hoveredItem = null
+                    }
+                    tryAwaitRelease()
+                    hoveredItem = null
+                    touchPosition = null
+                })
+            }
+        ) {
             var startAngle = -90f
-            data.forEach { item ->
-                val sweepAngle = (item.quantity / totalValue) * 360f
+            angles.forEachIndexed { index, sweepAngle ->
                 drawArc(
-                    color = item.color,
+                    color = data[index].color,
                     startAngle = startAngle,
-                    sweepAngle = sweepAngle,
+                    sweepAngle = sweepAngle - 2f, // Add a small gap between arcs
                     useCenter = false,
                     style = Stroke(width = 60f)
                 )
@@ -85,6 +121,19 @@ fun DonutChart(data: List<InventoryItemData>, total: Int) {
             }
         }
         Text(text = "%,d".format(total), fontSize = 32.sp, fontWeight = FontWeight.Bold)
+        
+        hoveredItem?.let { item ->
+            touchPosition?.let { position ->
+                 Popup(offset = IntOffset(position.x.toInt(), position.y.toInt() - 120)) {
+                    Surface(shape = RoundedCornerShape(8.dp), shadowElevation = 4.dp) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                             Text(text = item.name, fontWeight = FontWeight.Bold)
+                             Text(text = "%,d".format(item.quantity))
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -152,30 +201,68 @@ fun BidirectionalBarChart(data: List<InOutData>) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("입고", fontSize = 14.sp, color = Color.Gray)
         Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth().height(100.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            data.forEach {
-                Box(modifier = Modifier.width(20.dp).height((it.inbound / maxVal * 100).dp).background(Color(0xFF64B5F6), RoundedCornerShape(4.dp)))
-            }
-        }
+        BarChartRow(data = data.map { it.inbound }, maxVal = maxVal, color = Color(0xFF64B5F6), isTop = true)
         Spacer(modifier = Modifier.height(16.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
              data.forEach { Text(it.day, color = Color.Gray, fontSize = 12.sp) }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth().height(100.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.Top
-        ) {
-             data.forEach {
-                Box(modifier = Modifier.width(20.dp).height((it.outbound / maxVal * 100).dp).background(Color(0xFF90CAF9), RoundedCornerShape(4.dp)))
+        BarChartRow(data = data.map { it.outbound }, maxVal = maxVal, color = Color(0xFF90CAF9), isTop = false)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("출고", fontSize = 14.sp, color = Color.Gray)
+    }
+}
+
+@Composable
+fun BarChartRow(data: List<Float>, maxVal: Float, color: Color, isTop: Boolean) {
+    var hoveredIndex by remember { mutableStateOf<Int?>(null) }
+    var touchPosition by remember { mutableStateOf<Offset?>(null) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(100.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = { position ->
+                    val barWidth = size.width / data.size
+                    val index = (position.x / barWidth).toInt()
+                    if(index in data.indices){
+                         val barHeight = (data[index] / maxVal * size.height)
+                         val barTop = if(isTop) size.height - barHeight else 0f
+                         val barBottom = if(isTop) size.height.toFloat() else barHeight
+
+                        if(position.y in barTop..barBottom){
+                            touchPosition = position
+                            hoveredIndex = index
+                        }
+                    }
+                    tryAwaitRelease()
+                    hoveredIndex = null
+                    touchPosition = null
+                })
+            },
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = if (isTop) Alignment.Bottom else Alignment.Top
+    ) {
+        data.forEach {
+            Box(modifier = Modifier
+                .width(20.dp)
+                .height((it / maxVal * 100).dp)
+                .background(color, RoundedCornerShape(4.dp)))
+        }
+    }
+
+     hoveredIndex?.let { index ->
+        touchPosition?.let { position ->
+            Popup(offset = IntOffset(position.x.toInt(), position.y.toInt() - if(isTop) 60 else -20)) {
+                Surface(shape = RoundedCornerShape(8.dp), shadowElevation = 4.dp, color = Color.White) {
+                    Text(
+                        text = "%,.0f".format(data[index]),
+                        modifier = Modifier.padding(8.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
-         Spacer(modifier = Modifier.height(8.dp))
-        Text("출고", fontSize = 14.sp, color = Color.Gray)
     }
 }

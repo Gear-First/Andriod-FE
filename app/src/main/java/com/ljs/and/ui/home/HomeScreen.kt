@@ -218,7 +218,7 @@ fun QuickActions(navController: NavController) {
         )
         QuickAction(
             icon = Icons.Default.Search,
-            label = "재고 조회",
+            label = "재고 신청",
             onClick = { navController.navigate("inventory_request") }
         )
     }

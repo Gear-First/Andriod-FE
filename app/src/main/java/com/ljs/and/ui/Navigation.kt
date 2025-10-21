@@ -1,7 +1,6 @@
 package com.ljs.and.ui
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -17,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -29,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ljs.and.ui.common.BarcodeScanScreen
 import com.ljs.and.ui.common.ManualInputScreen
+import com.ljs.and.ui.home.HomeScreen
 import com.ljs.and.ui.inventory.InventoryRequestFormScreen
 import com.ljs.and.ui.inventory.InventoryScreen
 import com.ljs.and.ui.more.MoreScreen
@@ -44,9 +43,9 @@ sealed class Screen(val route: String) {
     object Releasing : Screen("releasing")
     object Inventory : Screen("inventory")
     object More : Screen("more")
-    object InventoryRequestForm : Screen("inventory_request_form") // Added
-    object BarcodeScan : Screen("barcode_scan/{flowType}") {
-        fun createRoute(flowType: String) = "barcode_scan/$flowType"
+    object InventoryRequestForm : Screen("inventory_request")
+    object BarcodeScan : Screen("barcodescan/{type}") {
+        fun createRoute(type: String) = "barcodescan/$type"
     }
     object ManualInput : Screen("manual_input/{flowType}") {
         fun createRoute(flowType: String) = "manual_input/$flowType"
@@ -86,7 +85,7 @@ fun MainScreen() {
             val showBottomBar = currentRoute !in listOf(
                 Screen.BarcodeScan.route,
                 Screen.ManualInput.route,
-                Screen.InventoryRequestForm.route // Hide on form screen
+                Screen.InventoryRequestForm.route
             )
             if (showBottomBar) {
                 BottomNavigationBar(navController = navController)
@@ -107,14 +106,15 @@ private fun BottomNavigationBar(navController: NavHostController) {
 
         bottomNavItems.forEach { (screen, details) ->
             val (title, icon) = details
+            val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
             NavigationBarItem(
                 icon = { Icon(icon, contentDescription = title) },
                 label = { Text(title) },
-                selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                selected = isSelected,
                 onClick = {
                     navController.navigate(screen.route) {
                         popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
+                            saveState = screen.route != Screen.Home.route
                         }
                         launchSingleTop = true
                         restoreState = true
@@ -128,20 +128,20 @@ private fun BottomNavigationBar(navController: NavHostController) {
 @Composable
 private fun NavigationGraph(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Screen.Home.route) {
-        composable(Screen.Home.route) { HomeScreen() }
+        composable(Screen.Home.route) { HomeScreen(navController = navController) } 
         composable(Screen.Receiving.route) { ReceivingScreen(navController = navController) }
         composable(Screen.Releasing.route) { ReleasingScreen(navController = navController) }
-        composable(Screen.Inventory.route) { InventoryScreen(navController = navController) } // Pass NavController
+        composable(Screen.Inventory.route) { InventoryScreen(navController = navController) }
         composable(Screen.More.route) { MoreScreen(navController = navController) }
-        composable(Screen.InventoryRequestForm.route) { InventoryRequestFormScreen(navController = navController) } // Added
+        composable(Screen.InventoryRequestForm.route) { InventoryRequestFormScreen(navController = navController) }
 
         composable(
             route = Screen.BarcodeScan.route,
-            arguments = listOf(navArgument("flowType") { type = NavType.StringType })
+            arguments = listOf(navArgument("type") { type = NavType.StringType })
         ) { backStackEntry ->
             BarcodeScanScreen(
                 navController = navController,
-                flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving"
+                flowType = backStackEntry.arguments?.getString("type") ?: "receiving"
             )
         }
         composable(
@@ -200,6 +200,3 @@ private fun NavigationGraph(navController: NavHostController) {
         }
     }
 }
-
-// Placeholder screens
-@Composable fun HomeScreen() { Box(modifier = Modifier.fillMaxSize()) { Text(text = "홈 화면") } }

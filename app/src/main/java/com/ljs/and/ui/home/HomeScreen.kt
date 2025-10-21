@@ -1,7 +1,6 @@
 package com.ljs.and.ui.home
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -27,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.ljs.and.ui.Screen
 import com.ljs.and.ui.theme.AndTheme
 import java.text.SimpleDateFormat
 import java.util.*
@@ -34,7 +34,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
-    var showDialog by remember { mutableStateOf(false) }
+    var showDialogType by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -52,24 +52,16 @@ fun HomeScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(24.dp))
             StatusCards(navController)
             Spacer(modifier = Modifier.height(24.dp))
-            ChartSection { showDialog = true }
+            ChartSection { dialogType -> showDialogType = dialogType }
             Spacer(modifier = Modifier.height(24.dp))
             QuickActions(navController)
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Modal") },
-            text = { Text("This is a blank modal.") },
-            confirmButton = {
-                Button(onClick = { showDialog = false }) {
-                    Text("Close")
-                }
-            }
-        )
+    when (showDialogType) {
+        "inventory" -> InventoryChartModal { showDialogType = null }
+        "weekly" -> WeeklyInOutChartModal { showDialogType = null }
     }
 }
 
@@ -113,13 +105,13 @@ fun StatusCards(navController: NavController) {
                 title = "오늘 입고 예정",
                 count = "12건",
                 modifier = Modifier.weight(1f),
-                onClick = { navController.navigate("receiving") }
+                onClick = { navController.navigate(Screen.Receiving.route) }
             )
             StatusCard(
                 title = "오늘 출고 예정",
                 count = "8건",
                 modifier = Modifier.weight(1f),
-                onClick = { navController.navigate("releasing") }
+                onClick = { navController.navigate(Screen.Releasing.route) }
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -127,13 +119,13 @@ fun StatusCards(navController: NavController) {
                 title = "부족 재고 품목",
                 count = "3개",
                 modifier = Modifier.weight(1f),
-                onClick = { navController.navigate("inventory") }
+                onClick = { navController.navigate(Screen.Inventory.route) }
             )
             StatusCard(
                 title = "처리 대기 품목",
                 count = "6개",
                 modifier = Modifier.weight(1f),
-                onClick = { /* 처리 대기 목록 화면으로 이동 */ }
+                onClick = { navController.navigate(Screen.PendingItems.route) }
             )
         }
     }
@@ -160,7 +152,7 @@ fun StatusCard(title: String, count: String, modifier: Modifier = Modifier, onCl
 }
 
 @Composable
-fun ChartSection(onChartClick: () -> Unit) {
+fun ChartSection(onChartClick: (String) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -177,12 +169,12 @@ fun ChartSection(onChartClick: () -> Unit) {
             ChartItem(
                 icon = Icons.Default.Build,
                 label = "품목별 재고",
-                onClick = onChartClick
+                onClick = { onChartClick("inventory") }
             )
             ChartItem(
                 icon = Icons.Default.Build,
                 label = "주간 입출고",
-                onClick = onChartClick
+                onClick = { onChartClick("weekly") }
             )
         }
     }
@@ -209,17 +201,17 @@ fun QuickActions(navController: NavController) {
         QuickAction(
             icon = Icons.Default.Add,
             label = "입고 등록",
-            onClick = { navController.navigate("barcodescan/receiving") }
+            onClick = { navController.navigate(Screen.BarcodeScan.createRoute("receiving")) }
         )
         QuickAction(
             icon = Icons.Default.Build,
             label = "출고 등록",
-            onClick = { navController.navigate("barcodescan/releasing") }
+            onClick = { navController.navigate(Screen.BarcodeScan.createRoute("releasing")) }
         )
         QuickAction(
             icon = Icons.Default.Search,
-            label = "재고 신청",
-            onClick = { navController.navigate("inventory_request") }
+            label = "재고 조회",
+            onClick = { navController.navigate(Screen.InventoryRequestForm.route) }
         )
     }
 }

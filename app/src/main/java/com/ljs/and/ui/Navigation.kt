@@ -31,6 +31,7 @@ import com.ljs.and.ui.home.HomeScreen
 import com.ljs.and.ui.inventory.InventoryRequestFormScreen
 import com.ljs.and.ui.inventory.InventoryScreen
 import com.ljs.and.ui.more.MoreScreen
+import com.ljs.and.ui.pending.PendingItemsScreen
 import com.ljs.and.ui.receiving.ReceivingInspectionScreen
 import com.ljs.and.ui.receiving.ReceivingScreen
 import com.ljs.and.ui.releasing.ReleasingPickingScreen
@@ -43,6 +44,7 @@ sealed class Screen(val route: String) {
     object Releasing : Screen("releasing")
     object Inventory : Screen("inventory")
     object More : Screen("more")
+    object PendingItems : Screen("pending_items")
     object InventoryRequestForm : Screen("inventory_request")
     object BarcodeScan : Screen("barcodescan/{type}") {
         fun createRoute(type: String) = "barcodescan/$type"
@@ -133,6 +135,7 @@ private fun NavigationGraph(navController: NavHostController) {
         composable(Screen.Releasing.route) { ReleasingScreen(navController = navController) }
         composable(Screen.Inventory.route) { InventoryScreen(navController = navController) }
         composable(Screen.More.route) { MoreScreen(navController = navController) }
+        composable(Screen.PendingItems.route) { PendingItemsScreen(navController = navController) }
         composable(Screen.InventoryRequestForm.route) { InventoryRequestFormScreen(navController = navController) }
 
         composable(

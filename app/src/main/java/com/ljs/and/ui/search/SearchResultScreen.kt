@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -19,6 +20,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,10 +31,12 @@ import coil.request.ImageRequest
 import com.ljs.and.R
 import com.ljs.and.data.ItemStatus
 
+// Data classes for different search result types
 sealed class SearchResult {
     data class Receiving(val item: ReceivingSearchResultItem) : SearchResult()
     data class Releasing(val item: ReleasingSearchResultItem) : SearchResult()
     data class Inventory(val item: InventorySearchResultItem) : SearchResult()
+    data class Pending(val item: PendingItem) : SearchResult()
 }
 
 data class ReceivingSearchResultItem(
@@ -64,6 +68,20 @@ data class InventorySearchResultItem(
     val manager: String? = null
 )
 
+data class PendingItem(
+    val type: String, // "입고" or "출고"
+    val number: String,
+    val company: String,
+    val partName: String,
+    val location: String,
+    val quantity: Int,
+    val manager: String,
+    val imageUrl: String,
+    val status: String // "검수 중" or "피킹 중"
+)
+
+
+// Dummy Data
 val dummyReceivingResults = listOf(
     ReceivingSearchResultItem("P001", "노트북", 5, "15인치"),
     ReceivingSearchResultItem("P002", "마우스", 10, "무선"),
@@ -82,6 +100,12 @@ val dummyInventoryResults = listOf(
     InventorySearchResultItem("IN - IJKL", "한국타이어", "타이어", "C-07-5", 8, "https://picsum.photos/202", ItemStatus.LOW_STOCK)
 )
 
+val dummyPendingResults = listOf(
+    PendingItem("입고", "IN - ABCD", "현대 모비스", "엔진 오일", "A-03-2", 3, "이지수", "https://i.namu.wiki/i/22z_qpCg1pxtx5-2a2p3rf_YnS9vyN03pt580e0Jc5n3rSg2g2TfNT9c2mfp3aLp4z-mAs2T9oPMwT3QYDYi6A.webp", "검수 중"),
+    PendingItem("출고", "OUT - EFGH", "현대 오토에버", "엔진 필터", "B-01-1", 1, "김유신", "https://i.namu.wiki/i/22z_qpCg1pxtx5-2a2p3rf_YnS9vyN03pt580e0Jc5n3rSg2g2TfNT9c2mfp3aLp4z-mAs2T9oPMwT3QYDYi6A.webp", "피킹 중")
+)
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchResultScreen(navController: NavController, flowType: String, initialQuery: String) {
@@ -90,6 +114,7 @@ fun SearchResultScreen(navController: NavController, flowType: String, initialQu
         "receiving" -> dummyReceivingResults.map { SearchResult.Receiving(it) }
         "releasing" -> dummyReleasingResults.map { SearchResult.Releasing(it) }
         "inventory" -> dummyInventoryResults.map { SearchResult.Inventory(it) }
+        "pending" -> dummyPendingResults.map { SearchResult.Pending(it) }
         else -> emptyList()
     }
 
@@ -133,7 +158,7 @@ fun SearchResultScreen(navController: NavController, flowType: String, initialQu
                 start = 16.dp,
                 end = 16.dp,
                 top = paddingValues.calculateTopPadding() + 12.dp,
-//                bottom = paddingValues.calculateBottomPadding() + 12.dp
+                bottom = paddingValues.calculateBottomPadding() + 12.dp
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -143,6 +168,7 @@ fun SearchResultScreen(navController: NavController, flowType: String, initialQu
                     is SearchResult.Receiving -> ReceivingResultCard(result.item)
                     is SearchResult.Releasing -> ReleasingResultCard(result.item)
                     is SearchResult.Inventory -> InventoryResultCard(result.item)
+                    is SearchResult.Pending -> PendingResultCard(result.item)
                 }
             }
         }
@@ -261,9 +287,61 @@ fun InventoryResultCard(item: InventorySearchResultItem) {
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (item.status == ItemStatus.DEFECTIVE) Color.Red else Color.LightGray
                     ),
-//                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
                 ) {
                     Text(item.status.displayName, color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PendingResultCard(item: PendingItem) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, Color.LightGray),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("[${item.type} 번호] ${item.number}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text("공급 업체: ${item.company}", fontSize = 14.sp, color = Color.Gray)
+                    Text("부품: ${item.partName}", fontSize = 14.sp, color = Color.Gray)
+                    Text("위치: ${item.location}, 수량: ${item.quantity}", fontSize = 14.sp, color = Color.Gray)
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                AsyncImage(
+                    model = item.imageUrl,
+                    contentDescription = item.partName,
+                    modifier = Modifier.size(60.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                 Column {
+                    Text("담당자", fontSize = 12.sp, color = Color.Gray)
+                    Text(item.manager, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+                OutlinedButton(
+                    onClick = { /* No action */ },
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, Color.Red),
+                    modifier = Modifier.size(width = 80.dp, height = 40.dp),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text(item.status, color = Color.Red, fontSize = 14.sp, textAlign = TextAlign.Center)
                 }
             }
         }
@@ -287,4 +365,10 @@ fun ReleasingResultScreenPreview() {
 @Composable
 fun InventoryResultScreenPreview() {
     SearchResultScreen(navController = rememberNavController(), flowType = "inventory", initialQuery = "엔진 오일")
+}
+
+@Preview(showBackground = true, name = "Pending Result")
+@Composable
+fun PendingResultScreenPreview() {
+    SearchResultScreen(navController = rememberNavController(), flowType = "pending", initialQuery = "엔진")
 }

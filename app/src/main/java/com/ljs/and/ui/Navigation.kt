@@ -1,6 +1,7 @@
 package com.ljs.and.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -97,7 +98,8 @@ fun MainScreen() {
             if (showBottomBar) {
                 BottomNavigationBar(navController = navController)
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp)
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             NavigationGraph(navController = navController)

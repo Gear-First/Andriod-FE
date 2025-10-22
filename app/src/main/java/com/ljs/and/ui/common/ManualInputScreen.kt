@@ -1,4 +1,3 @@
-
 package com.ljs.and.ui.common
 
 import android.annotation.SuppressLint
@@ -30,29 +29,33 @@ import java.util.Locale
 @Composable
 fun ManualInputScreen(navController: NavController, flowType: String) {
     val isReceiving = flowType == "receiving"
-    val title = if (isReceiving) "입고" else "출고"
+    val title = if (isReceiving) "입고 수기입력" else "출고 수기입력"
     val idLabel = if (isReceiving) "입고 번호" else "출고 번호"
     val partnerLabel = if (isReceiving) "공급 업체" else "거래처"
+    val quantityLabel = if (isReceiving) "입고 수량" else "출고 수량"
+    val userLabel = if (isReceiving) "검수자 명" else "피킹 담당자"
+    val dateTimeLabel = if (isReceiving) "검수 일시" else "피킹 일시"
+    val bottomButtonText = if (isReceiving) "검수 확인" else "피킹 확인"
 
-    var receivingNumber by remember { mutableStateOf("IN - ABCD") }
-    var supplier by remember { mutableStateOf("현대 모비스") }
+    var itemNumber by remember { mutableStateOf(if (isReceiving) "IN - ABCD" else "OUT - EFGH") }
+    var partner by remember { mutableStateOf("현대 모비스") }
     var partNameAndCode by remember { mutableStateOf("엔진 오일 / EO-12345") }
     var quantity by remember { mutableStateOf("100") }
     var storageLocation by remember { mutableStateOf("A - 30") }
-    var inspector by remember { mutableStateOf("홍길동") }
-    val inspectionDateTime by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())) }
+    var user by remember { mutableStateOf("홍길동") }
+    val processingDateTime by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())) }
 
     var isDefective by remember { mutableStateOf(false) }
     var defectType by remember { mutableStateOf<String?>(null) }
     var remarks by remember { mutableStateOf("") }
 
     val isFormValid by derivedStateOf {
-        receivingNumber.isNotBlank() &&
-                supplier.isNotBlank() &&
+        itemNumber.isNotBlank() &&
+                partner.isNotBlank() &&
                 partNameAndCode.isNotBlank() &&
                 quantity.isNotBlank() &&
                 storageLocation.isNotBlank() &&
-                inspector.isNotBlank() &&
+                user.isNotBlank() &&
                 (!isDefective || (defectType != null && remarks.isNotBlank()))
     }
 
@@ -67,15 +70,19 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
             ManualInputBottomBar(
                 onCancel = { navController.popBackStack() },
                 onComplete = {
-                    // 1. "검수 완료" 상태를 ReceivingInspectionScreen으로 전달합니다.
-                    navController.getBackStackEntry(Screen.ReceivingInspection.route).savedStateHandle.set("manualInputCompleted", true)
-                    // 2. BarcodeScanScreen을 건너뛰고 ReceivingInspectionScreen으로 돌아갑니다.
-                    navController.popBackStack(Screen.ReceivingInspection.route, inclusive = false)
+                    if (isReceiving) {
+                        navController.getBackStackEntry(Screen.ReceivingInspection.route).savedStateHandle["manualInputCompleted"] = true
+                        navController.popBackStack(Screen.ReceivingInspection.route, false)
+                    } else { // Releasing
+                        navController.getBackStackEntry(Screen.ReleasingPicking.route).savedStateHandle["manualInputCompleted"] = true
+                        navController.popBackStack(Screen.ReleasingPicking.route, false)
+                    }
                 },
-                isCompleteEnabled = isFormValid
+                isCompleteEnabled = isFormValid,
+                buttonText = bottomButtonText
             )
         },
-        containerColor = Color(0xFFF0F2F5) // A slightly gray background
+        containerColor = Color(0xFFF0F2F5)
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -85,7 +92,6 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Part Info Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -95,12 +101,11 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text("부품 정보", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     TitledTextField(label = "부품명/코드", value = partNameAndCode, onValueChange = { partNameAndCode = it })
-                    TitledTextField(label = partnerLabel, value = supplier, onValueChange = { supplier = it })
-                    TitledTextField(label = idLabel, value = receivingNumber, onValueChange = { receivingNumber = it })
+                    TitledTextField(label = partnerLabel, value = partner, onValueChange = { partner = it })
+                    TitledTextField(label = idLabel, value = itemNumber, onValueChange = { itemNumber = it })
                 }
             }
 
-            // Inspection Info Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -108,10 +113,10 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("검수 정보", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(if (isReceiving) "검수 정보" else "피킹 정보", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         TitledTextField(
-                            label = "입고 수량",
+                            label = quantityLabel,
                             value = quantity,
                             onValueChange = { quantity = it },
                             modifier = Modifier.weight(1f)
@@ -123,12 +128,11 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    TitledTextField(label = "검수자 명", value = inspector, onValueChange = { inspector = it })
-                    TitledTextField(label = "검수 일시", value = inspectionDateTime, onValueChange = {}, readOnly = true)
+                    TitledTextField(label = userLabel, value = user, onValueChange = { user = it })
+                    TitledTextField(label = dateTimeLabel, value = processingDateTime, onValueChange = {}, readOnly = true)
                 }
             }
 
-            // Defect Selection Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -262,7 +266,7 @@ fun DefectSelection(
 }
 
 @Composable
-fun ManualInputBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isCompleteEnabled: Boolean) {
+fun ManualInputBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isCompleteEnabled: Boolean, buttonText: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -293,15 +297,23 @@ fun ManualInputBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isComplet
             ),
             enabled = isCompleteEnabled
         ) {
-            Text("검수 확인", color = Color.White)
+            Text(buttonText, color = Color.White)
         }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun ManualInputScreenPreview() {
+fun ManualInputScreenReceivingPreview() {
     MaterialTheme {
         ManualInputScreen(navController = rememberNavController(), flowType = "receiving")
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ManualInputScreenReleasingPreview() {
+    MaterialTheme {
+        ManualInputScreen(navController = rememberNavController(), flowType = "releasing")
     }
 }

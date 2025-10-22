@@ -5,14 +5,24 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,77 +30,108 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import com.ljs.and.R
 import com.ljs.and.ui.Screen
-
-data class PickingItem(
-    val id: String,
-    val customer: String,
-    val partName: String,
-    val location: String,
-    val quantity: Int,
-    val manager: String,
-    var status: String,
-    val imageUrl: Int? = null
-)
-
-val dummyPickingList = mutableStateListOf(
-    PickingItem("OUT - 1234", "현대 자동차", "브레이크 패드", "B-02-1", 5, "이지수", "피킹 중", R.drawable.ic_launcher_background),
-    PickingItem("OUT - 5678", "기아", "엔진 커버", "B-02-3", 2, "이지수", "완료", R.drawable.ic_launcher_background)
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReleasingPickingScreen(navController: NavController, customer: String, date: String) {
-    val allItemsCompleted = dummyPickingList.all { it.status == "완료" }
+fun ReleasingPickingScreen(
+    navController: NavController,
+    viewModel: ReleasingViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val selectedItem = uiState.selectedReleasingItem
+    val pickingList = uiState.pickingList
+
+    val isReadOnly = selectedItem?.status == "완료"
+
+    val allItemsCompleted = !isReadOnly && pickingList.isNotEmpty() && pickingList.all { it.isPicked }
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    val focusManager = LocalFocusManager.current
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val manualInputResult = navController.currentBackStackEntry
+                    ?.savedStateHandle
+                    ?.get<Boolean>("manualInputCompleted")
+                if (manualInputResult == true) {
+                    viewModel.completeCurrentPicking()
+                    navController.currentBackStackEntry?.savedStateHandle?.remove<Boolean>("manualInputCompleted")
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
 
     Scaffold(
         topBar = {
             PickingTopAppBar(
+                isReadOnly = isReadOnly,
                 isSearchVisible = isSearchVisible,
                 searchQuery = searchQuery,
                 onSearchQueryChange = { searchQuery = it },
                 onSearchVisibilityChange = { isSearchVisible = it },
+                onNavigateBack = { navController.popBackStack() },
                 onPerformSearch = {
                     if (searchQuery.isNotBlank()) {
                         navController.navigate(Screen.SearchResult.createRoute("releasing", searchQuery))
                     }
                     isSearchVisible = false
-                    focusManager.clearFocus()
                 }
             )
         },
         bottomBar = {
             PickingBottomBar(
-                onCancel = {  navController.navigate(Screen.Releasing.route) },
+                isReadOnly = isReadOnly,
+                onConfirm = { navController.popBackStack() },
+                onCancel = { navController.popBackStack() },
                 onComplete = {
-                    if (allItemsCompleted) {
-                        navController.navigate(Screen.Releasing.route) { // Navigate back to the main Releasing screen
-                            popUpTo(Screen.Releasing.route) { inclusive = true }
-                        }
-                    } else {
-                        // Optional: Show a message to the user that not all items are completed
-                    }
+                    viewModel.completeAllPicking()
+                    navController.popBackStack()
                 },
                 isCompleteEnabled = allItemsCompleted
             )
         },
         containerColor = Color.White
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding).fillMaxSize().background(Color.White) ) {
-            PickingHeader(customer = customer, date = date)
-            PickingList(navController = navController, items = dummyPickingList)
+        if (uiState.isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (selectedItem != null) {
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
+                    .background(Color.White)
+            ) {
+                PickingHeader(customer = selectedItem.customer, date = selectedItem.expectedDate)
+                PickingList(
+                    items = pickingList,
+                    selectedReleasingItem = selectedItem,
+                    isReadOnly = isReadOnly,
+                    navController = navController,
+                    onItemClick = { itemId ->
+                        viewModel.setCurrentPickingItem(itemId)
+                        navController.navigate(Screen.BarcodeScan.createRoute("releasing"))
+                    }
+                )
+            }
         }
     }
 }
@@ -98,16 +139,18 @@ fun ReleasingPickingScreen(navController: NavController, customer: String, date:
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PickingTopAppBar(
+    isReadOnly: Boolean,
     isSearchVisible: Boolean,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onSearchVisibilityChange: (Boolean) -> Unit,
+    onNavigateBack: () -> Unit,
     onPerformSearch: () -> Unit
 ) {
     val focusManager = LocalFocusManager.current
 
     TopAppBar(
-        title = { 
+        title = {
             if (isSearchVisible) {
                 TextField(
                     value = searchQuery,
@@ -128,33 +171,15 @@ fun PickingTopAppBar(
                     )
                 )
             } else {
-                Text("출고", fontWeight = FontWeight.Bold)
-            }
-        },
-        navigationIcon = {
-            if (isSearchVisible) {
-                IconButton(onClick = { onSearchVisibilityChange(false) }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                }
+                Text(if(isReadOnly) "출고 상세" else "피킹 중", fontWeight = FontWeight.Bold)
             }
         },
         actions = {
-            if (isSearchVisible) {
-                 IconButton(onClick = { 
-                     onPerformSearch()
-                     focusManager.clearFocus()
-                 }) {
-                    Icon(Icons.Filled.Search, contentDescription = "Search")
-                }
-            } else {
-                IconButton(onClick = { onSearchVisibilityChange(true) }) {
-                    Icon(Icons.Filled.Search, contentDescription = "Search")
-                }
+            IconButton(onClick = { onSearchVisibilityChange(!isSearchVisible) }) {
+                Icon(Icons.Filled.Search, contentDescription = "Search")
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White
-        )
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
     )
 }
 
@@ -171,18 +196,17 @@ fun PickingHeader(customer: String, date: String) {
             Text("거래처: $customer", fontSize = 14.sp, color = Color.Gray)
             Text("날짜: $date", fontSize = 14.sp, color = Color.Gray)
         }
-        OutlinedButton(
-            onClick = {},
-            shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, Color(0xFF007BFF))
-        ) {
-            Text("피킹 중", color = Color(0xFF007BFF))
-        }
     }
 }
 
 @Composable
-fun PickingList(navController: NavController, items: MutableList<PickingItem>) {
+fun PickingList(
+    items: List<PickingItem>,
+    selectedReleasingItem: ReleasingItem,
+    isReadOnly: Boolean,
+    navController: NavController,
+    onItemClick: (String) -> Unit
+) {
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -190,115 +214,100 @@ fun PickingList(navController: NavController, items: MutableList<PickingItem>) {
         items(items) { item ->
             PickingItemCard(
                 item = item,
-                status = item.status,
-                onClick = {
-                    if (item.status != "완료") {
-                        navController.navigate(Screen.BarcodeScan.createRoute("releasing"))
-                    }
-                }
+                releasingItem = selectedReleasingItem,
+                isReadOnly = isReadOnly,
+                onClick = { onItemClick(item.id) }
             )
         }
     }
 }
 
 @Composable
-fun PickingItemCard(item: PickingItem, status: String, onClick: () -> Unit) {
+fun PickingItemCard(item: PickingItem, releasingItem: ReleasingItem, isReadOnly: Boolean, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp)),
+            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick, enabled = !isReadOnly),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            item.imageUrl?.let {
+                Image(
+                    painter = painterResource(id = it),
+                    contentDescription = "Product Image",
+                    modifier = Modifier.size(60.dp).padding(end = 16.dp)
+                )
+            }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("[출고 번호] ${item.id}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("거래처: ${item.customer}", fontSize = 13.sp)
-                Text("부품: ${item.partName}", fontSize = 13.sp)
-                Text("위치: ${item.location}, 수량: ${item.quantity}", fontSize = 13.sp)
-                Text("담당자: ${item.manager}", fontSize = 13.sp)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                item.imageUrl?.let {
-                    Image(
-                        painter = painterResource(id = it),
-                        contentDescription = "Product Image",
-                        modifier = Modifier.size(50.dp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if(item.isPicked) "피킹완료" else "피킹중",
+                        color = if(item.isPicked) Color(0xFF007BFF) else Color.Red,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(releasingItem.customer, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                StatusButton(status = status, onClick = onClick)
+                Text("${item.partName} / ${item.partCode}", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("출고번호: ${item.releasingId}", fontSize = 12.sp, color = Color.Gray)
+                Text("출고수량: ${item.quantity}", fontSize = 12.sp, color = Color.Gray)
+                Text("위치: ${item.location}", fontSize = 12.sp, color = Color.Gray)
+                Text("담당자: ${releasingItem.manager}", fontSize = 12.sp, color = Color.Gray)
             }
         }
     }
 }
 
 @Composable
-fun StatusButton(status: String, onClick: () -> Unit) {
-    val (text, color, textColor) = if (status == "피킹 중") {
-        Triple("피킹 중", Color.White, Color.Red)
+fun PickingBottomBar(
+    isReadOnly: Boolean,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+    onComplete: () -> Unit,
+    isCompleteEnabled: Boolean
+) {
+    if (isReadOnly) {
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Button(
+                onClick = onConfirm,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
+            ) {
+                Text("확인", color = Color.White)
+            }
+        }
     } else {
-        Triple("완료", Color(0xFFE0E0E0), Color.Black)
-    }
-    val border = BorderStroke(1.dp, if (status == "피킹 중") Color.Red else Color.LightGray)
-
-    OutlinedButton(
-        onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
-        border = border,
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = color),
-        enabled = status != "완료"
-    ) {
-        Text(text, color = textColor)
-    }
-}
-
-
-@Composable
-fun PickingBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isCompleteEnabled: Boolean) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        OutlinedButton(
-            onClick = onCancel,
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .height(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, Color.LightGray)
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Text("취소", color = Color.Black)
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.LightGray)
+            ) {
+                Text("취소", color = Color.Black)
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Button(
+                onClick = onComplete,
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isCompleteEnabled) Color(0xFF007BFF) else Color.LightGray
+                ),
+                enabled = isCompleteEnabled
+            ) {
+                Text("피킹 완료", color = Color.White)
+            }
         }
-        Spacer(modifier = Modifier.width(16.dp))
-        Button(
-            onClick = onComplete,
-            modifier = Modifier
-                .weight(1f)
-                .height(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (isCompleteEnabled) Color(0xFF007BFF) else Color.LightGray
-            ),
-            enabled = isCompleteEnabled
-        ) {
-            Text("피킹 완료", color = Color.White)
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ReleasingPickingScreenPreview() {
-    MaterialTheme {
-        ReleasingPickingScreen(navController = rememberNavController(), customer = "현대 자동차", date = "2025.10.13")
     }
 }

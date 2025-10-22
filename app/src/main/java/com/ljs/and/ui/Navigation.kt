@@ -45,13 +45,15 @@ import com.ljs.and.ui.receiving.ReceivingScreen
 import com.ljs.and.ui.receiving.ReceivingViewModel
 import com.ljs.and.ui.releasing.ReleasingPickingScreen
 import com.ljs.and.ui.releasing.ReleasingScreen
+import com.ljs.and.ui.releasing.ReleasingViewModel
 import com.ljs.and.ui.search.SearchResultScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
-    object Receiving : Screen("receiving") // This now represents the nested graph
-    object ReceivingHome: Screen("receiving_home") // Start destination of the nested graph
+    object Receiving : Screen("receiving")
+    object ReceivingHome: Screen("receiving_home")
     object Releasing : Screen("releasing")
+    object ReleasingHome : Screen("releasing_home")
     object Inventory : Screen("inventory")
     object More : Screen("more")
     object InventoryRequestForm : Screen("inventory_request")
@@ -97,7 +99,8 @@ fun MainScreen() {
                 Screen.BarcodeScan.route,
                 Screen.ManualInput.route,
                 Screen.InventoryRequestForm.route,
-                Screen.ReceivingInspection.route // Hide bottom bar on inspection screen
+                Screen.ReceivingInspection.route, // Hide bottom bar on inspection screen
+                Screen.ReleasingPicking.route
             )
             if (showBottomBar) {
                 BottomNavigationBar(navController = navController)
@@ -151,8 +154,8 @@ private fun BottomNavigationBar(navController: NavHostController) {
 @Composable
 private fun NavigationGraph(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Screen.Home.route) {
-        composable(Screen.Home.route) { HomeScreen(navController = navController) } 
-        
+        composable(Screen.Home.route) { HomeScreen(navController = navController) }
+
         navigation(startDestination = Screen.ReceivingHome.route, route = Screen.Receiving.route) {
             composable(Screen.ReceivingHome.route) { backStackEntry ->
                 val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Receiving.route) }
@@ -171,8 +174,26 @@ private fun NavigationGraph(navController: NavHostController) {
                 ReceivingInspectionScreen(navController = navController, viewModel = viewModel)
             }
         }
-        
-        composable(Screen.Releasing.route) { ReleasingScreen(navController = navController) }
+
+        navigation(startDestination = Screen.ReleasingHome.route, route = Screen.Releasing.route) {
+            composable(Screen.ReleasingHome.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Releasing.route) }
+                val viewModel: ReleasingViewModel = viewModel(parentEntry)
+                ReleasingScreen(navController = navController, viewModel = viewModel)
+            }
+            composable(
+                route = Screen.ReleasingPicking.route,
+                arguments = listOf(
+                    navArgument("customer") { type = NavType.StringType },
+                    navArgument("date") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Releasing.route) }
+                val viewModel: ReleasingViewModel = viewModel(parentEntry)
+                ReleasingPickingScreen(navController = navController, viewModel = viewModel)
+            }
+        }
+
         composable(Screen.Inventory.route) { InventoryScreen(navController = navController) }
         composable(Screen.More.route) { MoreScreen(navController = navController) }
         composable(Screen.InventoryRequestForm.route) { InventoryRequestFormScreen(navController = navController) }

@@ -2,7 +2,9 @@ package com.ljs.and.ui.releasing
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,8 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,57 +21,34 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.ljs.and.ui.Screen
-
-// Data classes
-data class PendingReleasingNote(val customer: String, val date: String, val itemCount: Int)
-
-// Dummy Data
-val dummyPendingList = listOf(
-    PendingReleasingNote("현대 자동차", "2025.10.13", 15),
-    PendingReleasingNote("기아", "2025.10.14", 8)
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReleasingScreen(navController: NavController, initialTabIndex: Int = 0) {
-    var selectedTabIndex by remember { mutableStateOf(initialTabIndex) }
-    val tabs = listOf("출고 대기", "완료")
+fun ReleasingScreen(
+    navController: NavController,
+    viewModel: ReleasingViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    var selectedTabIndex by remember { mutableStateOf(0) }
+    val tabs = listOf("출고 대기", "출고 완료")
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
+
+    val (pendingItems, completedItems) = uiState.releasingList.partition { it.status == "대기" }
 
     Scaffold(
         topBar = { 
@@ -97,9 +74,27 @@ fun ReleasingScreen(navController: NavController, initialTabIndex: Int = 0) {
                 tabs = tabs,
                 onTabSelected = { selectedTabIndex = it }
             )
-            when (selectedTabIndex) {
-                0 -> PendingReleasingScreen(navController = navController, pendingList = dummyPendingList)
-                1 -> ReleasingCompletedScreen(navController = navController)
+            if (uiState.isLoading && uiState.releasingList.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                when (selectedTabIndex) {
+                    0 -> PendingScreen(
+                        pendingList = pendingItems,
+                        onItemClick = { item ->
+                            viewModel.selectReleasingItem(item)
+                            navController.navigate(Screen.ReleasingPicking.createRoute(item.customer, item.expectedDate))
+                        }
+                    )
+                    1 -> ReleasingCompletedScreen(
+                        completedList = completedItems,
+                        onItemClick = { item ->
+                            viewModel.selectReleasingItem(item)
+                            navController.navigate(Screen.ReleasingPicking.createRoute(item.customer, item.expectedDate))
+                        }
+                    )
+                }
             }
         }
     }
@@ -199,9 +194,8 @@ fun ReleasingTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (I
     }
 }
 
-
 @Composable
-fun PendingReleasingScreen(navController: NavController, pendingList: List<PendingReleasingNote>) {
+fun PendingScreen(pendingList: List<ReleasingItem>, onItemClick: (ReleasingItem) -> Unit) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -210,55 +204,41 @@ fun PendingReleasingScreen(navController: NavController, pendingList: List<Pendi
         contentPadding = PaddingValues(bottom = 16.dp)
     ) {
         items(pendingList) { item ->
-            PendingReleasingCard(item = item, onStartPicking = {
-                navController.navigate(Screen.ReleasingPicking.createRoute(item.customer, item.date))
-            })
+            PendingCard(item = item, onStartPicking = { onItemClick(item) })
         }
     }
 }
 
 @Composable
-fun PendingReleasingCard(item: PendingReleasingNote, onStartPicking: () -> Unit) {
+fun PendingCard(item: ReleasingItem, onStartPicking: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth()
-            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp))
+            .clickable(onClick = onStartPicking),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Outlined.Build,
-                    contentDescription = "Shipping Truck",
-                    modifier = Modifier.size(60.dp),
-                    tint = Color.Gray
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text("거래처: ${item.customer}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("날짜: ${item.date}", fontSize = 14.sp, color = Color.Gray)
-                    Text("품목: ${item.itemCount}개", fontSize = 14.sp, color = Color.Gray)
-                }
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("거래처: ${item.customer}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(item.status, color = Color.Red, fontWeight = FontWeight.Bold)
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedButton(
+            Text("출고번호: ${item.id}", fontSize = 14.sp, color = Color.Gray)
+            Text("출고 예정일: ${item.expectedDate}", fontSize = 14.sp, color = Color.Gray)
+            Text("품목 수량 요약: ${item.totalQuantity}개", fontSize = 14.sp, color = Color.Gray)
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Button(
                 onClick = onStartPicking,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                border = BorderStroke(1.dp, Color.LightGray)
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
             ) {
-                Text("피킹 시작", color = Color.Black)
+                Text("피킹 시작", color = Color.White)
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ReleasingScreenPreview() {
-    MaterialTheme {
-        ReleasingScreen(navController = rememberNavController())
     }
 }

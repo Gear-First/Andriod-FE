@@ -1,12 +1,21 @@
-
 package com.ljs.and.ui.receiving
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,71 +36,82 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.ljs.and.R
 import com.ljs.and.ui.Screen
-
-data class InspectingItem(
-    val id: String,
-    val supplier: String,
-    val partName: String,
-    val location: String,
-    val quantity: Int,
-    val manager: String,
-    var status: String,
-    val imageUrl: Int? = null
-)
-
-val dummyInspectingList = mutableStateListOf(
-    InspectingItem("IN - ABCD", "현대 모비스", "엔진 오일", "A-03-2", 3, "이지수", "검수 중", R.drawable.ic_launcher_background),
-    InspectingItem("IN - ABCD", "현대 모비스", "엔진 오일", "A-03-2", 3, "이지수", "완료", R.drawable.ic_launcher_background)
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReceivingInspectionScreen(navController: NavController, supplier: String, date: String) {
-    val allItemsCompleted = dummyInspectingList.all { it.status == "완료" }
+fun ReceivingInspectionScreen(
+    navController: NavController,
+    viewModel: ReceivingViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val selectedItem = uiState.selectedReceivingItem
+    val inspectionList = uiState.inspectionList
+
+    // 읽기 전용 모드인지 확인 (선택된 아이템의 상태가 '완료'일 경우)
+    val isReadOnly = selectedItem?.status == "완료"
+
+    val allItemsCompleted = !isReadOnly && inspectionList.isNotEmpty() && inspectionList.all { it.isInspected }
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    val focusManager = LocalFocusManager.current
 
     Scaffold(
         topBar = {
             InspectionTopAppBar(
+                isReadOnly = isReadOnly,
                 isSearchVisible = isSearchVisible,
                 searchQuery = searchQuery,
                 onSearchQueryChange = { searchQuery = it },
                 onSearchVisibilityChange = { isSearchVisible = it },
+                onNavigateBack = { navController.popBackStack() },
                 onPerformSearch = {
                     if (searchQuery.isNotBlank()) {
                         navController.navigate(Screen.SearchResult.createRoute("receiving", searchQuery))
                     }
                     isSearchVisible = false
-                    focusManager.clearFocus()
                 }
             )
         },
         bottomBar = {
             InspectionBottomBar(
-                onCancel = {  navController.navigate(Screen.Receiving.route) },
-                onComplete = {
-                    if (allItemsCompleted) {
-                        navController.navigate(Screen.Receiving.route) { // Navigate back to the main Receiving screen
-                            popUpTo(Screen.Receiving.route) { inclusive = true }
-                        }
-                    } else {
-                        // Optional: Show a message to the user that not all items are completed
-                    }
+                isReadOnly = isReadOnly,
+                onConfirm = { navController.popBackStack() }, // 확인 버튼 (읽기 전용 모드)
+                onCancel = { navController.popBackStack() }, // 검수 대기 버튼
+                onComplete = { // 검수 완료 버튼
+                    viewModel.completeAllInspections()
+                    navController.popBackStack()
                 },
                 isCompleteEnabled = allItemsCompleted
             )
         },
         containerColor = Color.White
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding).fillMaxSize().background(Color.White) ) {
-            InspectionHeader(supplier = supplier, date = date)
-            InspectionList(navController = navController, items = dummyInspectingList)
+        if (uiState.isLoading) {
+             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (selectedItem != null) {
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
+                    .background(Color.White)
+            ) {
+                InspectionHeader(supplier = selectedItem.supplier, date = selectedItem.expectedDate)
+                InspectionList(
+                    items = inspectionList,
+                    selectedReceivingItem = selectedItem,
+                    isReadOnly = isReadOnly,
+                    onItemInspectClick = { itemId ->
+                        if (!isReadOnly) {
+                            viewModel.completeInspection(itemId)
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -99,10 +119,12 @@ fun ReceivingInspectionScreen(navController: NavController, supplier: String, da
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InspectionTopAppBar(
+    isReadOnly: Boolean,
     isSearchVisible: Boolean,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onSearchVisibilityChange: (Boolean) -> Unit,
+    onNavigateBack: () -> Unit,
     onPerformSearch: () -> Unit
 ) {
     val focusManager = LocalFocusManager.current
@@ -129,33 +151,20 @@ fun InspectionTopAppBar(
                     )
                 )
             } else {
-                Text("입고", fontWeight = FontWeight.Bold)
+                Text(if(isReadOnly) "입고 상세" else "검수 중", fontWeight = FontWeight.Bold)
             }
         },
-        navigationIcon = {
-            if (isSearchVisible) {
-                IconButton(onClick = { onSearchVisibilityChange(false) }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                }
-            }
-        },
+//        navigationIcon = {
+//             IconButton(onClick = onNavigateBack) {
+////                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+//            }
+//        },
         actions = {
-            if (isSearchVisible) {
-                 IconButton(onClick = { 
-                     onPerformSearch()
-                     focusManager.clearFocus()
-                 }) {
-                    Icon(Icons.Filled.Search, contentDescription = "Search")
-                }
-            } else {
-                IconButton(onClick = { onSearchVisibilityChange(true) }) {
-                    Icon(Icons.Filled.Search, contentDescription = "Search")
-                }
+            IconButton(onClick = { onSearchVisibilityChange(!isSearchVisible) }) {
+                Icon(Icons.Filled.Search, contentDescription = "Search")
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White
-        )
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
     )
 }
 
@@ -172,18 +181,16 @@ fun InspectionHeader(supplier: String, date: String) {
             Text("공급 업체: $supplier", fontSize = 14.sp, color = Color.Gray)
             Text("날짜: $date", fontSize = 14.sp, color = Color.Gray)
         }
-        OutlinedButton(
-            onClick = {},
-            shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, Color(0xFF007BFF))
-        ) {
-            Text("검수 중", color = Color(0xFF007BFF))
-        }
     }
 }
 
 @Composable
-fun InspectionList(navController: NavController, items: MutableList<InspectingItem>) {
+fun InspectionList(
+    items: List<InspectionItem>,
+    selectedReceivingItem: ReceivingItem,
+    isReadOnly: Boolean,
+    onItemInspectClick: (String) -> Unit
+) {
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -191,115 +198,126 @@ fun InspectionList(navController: NavController, items: MutableList<InspectingIt
         items(items) { item ->
             InspectionItemCard(
                 item = item,
-                status = item.status,
-                onClick = {
-                    if (item.status != "완료") {
-                        navController.navigate(Screen.BarcodeScan.createRoute("receiving"))
-                    }
-                }
+                receivingItem = selectedReceivingItem,
+                isReadOnly = isReadOnly,
+                onInspectClick = { onItemInspectClick(item.id) }
             )
         }
     }
 }
 
 @Composable
-fun InspectionItemCard(item: InspectingItem, status: String, onClick: () -> Unit) {
+fun InspectionItemCard(item: InspectionItem, receivingItem: ReceivingItem, isReadOnly: Boolean, onInspectClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
             .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp)),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            item.imageUrl?.let {
+                Image(
+                    painter = painterResource(id = it),
+                    contentDescription = "Product Image",
+                    modifier = Modifier.size(60.dp).padding(end = 16.dp)
+                )
+            }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("[입고 번호] ${item.id}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("공급 업체: ${item.supplier}", fontSize = 13.sp)
-                Text("부품: ${item.partName}", fontSize = 13.sp)
-                Text("위치: ${item.location}, 수량: ${item.quantity}", fontSize = 13.sp)
-                Text("담당자: ${item.manager}", fontSize = 13.sp)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                item.imageUrl?.let {
-                    Image(
-                        painter = painterResource(id = it),
-                        contentDescription = "Product Image",
-                        modifier = Modifier.size(50.dp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                     Text(
+                        text = if(item.isInspected) "검수완료" else "검수중", 
+                        color = if(item.isInspected) Color(0xFF007BFF) else Color.Red,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(receivingItem.supplier, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                StatusButton(status = status, onClick = onClick)
+                Text("${item.partName} / ${item.partCode}", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("입고번호: ${item.receivingId}", fontSize = 12.sp, color = Color.Gray)
+                Text("입고수량: ${item.quantity}", fontSize = 12.sp, color = Color.Gray)
+                Text("위치: ${item.location}", fontSize = 12.sp, color = Color.Gray)
+                Text("담당자: ${receivingItem.manager}", fontSize = 12.sp, color = Color.Gray)
+            }
+            if (!isReadOnly && !item.isInspected) {
+                Button(onClick = onInspectClick, shape = RoundedCornerShape(8.dp)) {
+                    Text("완료")
+                }
             }
         }
     }
 }
 
 @Composable
-fun StatusButton(status: String, onClick: () -> Unit) {
-    val (text, color, textColor) = if (status == "검수 중") {
-        Triple("검수 중", Color.White, Color.Red)
+fun InspectionBottomBar(
+    isReadOnly: Boolean,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit, 
+    onComplete: () -> Unit, 
+    isCompleteEnabled: Boolean
+) {
+    if (isReadOnly) {
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Button(
+                onClick = onConfirm,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
+            ) {
+                Text("확인", color = Color.White)
+            }
+        }
     } else {
-        Triple("완료", Color(0xFFE0E0E0), Color.Black)
-    }
-    val border = BorderStroke(1.dp, if (status == "검수 중") Color.Red else Color.LightGray)
-
-    OutlinedButton(
-        onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
-        border = border,
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = color),
-        enabled = status != "완료"
-    ) {
-        Text(text, color = textColor)
-    }
-}
-
-
-@Composable
-fun InspectionBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isCompleteEnabled: Boolean) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        OutlinedButton(
-            onClick = onCancel,
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .height(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, Color.LightGray)
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Text("취소", color = Color.Black)
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Button(
-            onClick = onComplete,
-            modifier = Modifier
-                .weight(1f)
-                .height(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (isCompleteEnabled) Color(0xFF007BFF) else Color.LightGray
-            ),
-            enabled = isCompleteEnabled
-        ) {
-            Text("검수 완료", color = Color.White)
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.LightGray)
+            ) {
+                Text("취소", color = Color.Black)
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Button(
+                onClick = onComplete,
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isCompleteEnabled) Color(0xFF007BFF) else Color.LightGray
+                ),
+                enabled = isCompleteEnabled
+            ) {
+                Text("검수 완료", color = Color.White)
+            }
         }
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun ReceivingInspectionScreenPreview() {
-    MaterialTheme {
-        ReceivingInspectionScreen(navController = rememberNavController(), supplier = "현대 모비스", date = "2025.10.13")
-    }
-}
+//@Preview(showBackground = true, name = "Read-Only Mode")
+//@Composable
+//fun ReceivingInspectionScreenPreview_ReadOnly() {
+//    MaterialTheme {
+//        val dummyViewModel = ReceivingViewModel()
+//        val item = ReceivingItem("R-003", "거래처 C", "2024.09.20", "2024.09.20 14:30", 200, "최담당", "완료")
+//        dummyViewModel.selectReceivingItem(item)
+//        ReceivingInspectionScreen(navController = rememberNavController(), viewModel = dummyViewModel)
+//    }
+//}
+//
+//@Preview(showBackground = true, name = "Inspection Mode")
+//@Composable
+//fun ReceivingInspectionScreenPreview_Inspection() {
+//    MaterialTheme {
+//        val dummyViewModel = ReceivingViewModel()
+//        val item = ReceivingItem("R-001", "거래처 A", "2024.10.28", null, 120, "김담당", "대기")
+//        dummyViewModel.selectReceivingItem(item)
+//        ReceivingInspectionScreen(navController = rememberNavController(), viewModel = dummyViewModel)
+//    }
+//}

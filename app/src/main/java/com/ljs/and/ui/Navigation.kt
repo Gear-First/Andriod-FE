@@ -18,10 +18,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -31,26 +33,27 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navigation
 import com.ljs.and.ui.common.BarcodeScanScreen
 import com.ljs.and.ui.common.ManualInputScreen
 import com.ljs.and.ui.home.HomeScreen
 import com.ljs.and.ui.inventory.InventoryRequestFormScreen
 import com.ljs.and.ui.inventory.InventoryScreen
 import com.ljs.and.ui.more.MoreScreen
-import com.ljs.and.ui.pending.PendingItemsScreen
 import com.ljs.and.ui.receiving.ReceivingInspectionScreen
 import com.ljs.and.ui.receiving.ReceivingScreen
+import com.ljs.and.ui.receiving.ReceivingViewModel
 import com.ljs.and.ui.releasing.ReleasingPickingScreen
 import com.ljs.and.ui.releasing.ReleasingScreen
 import com.ljs.and.ui.search.SearchResultScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
-    object Receiving : Screen("receiving")
+    object Receiving : Screen("receiving") // This now represents the nested graph
+    object ReceivingHome: Screen("receiving_home") // Start destination of the nested graph
     object Releasing : Screen("releasing")
     object Inventory : Screen("inventory")
     object More : Screen("more")
-    object PendingItems : Screen("pending_items")
     object InventoryRequestForm : Screen("inventory_request")
     object BarcodeScan : Screen("barcodescan/{type}") {
         fun createRoute(type: String) = "barcodescan/$type"
@@ -93,7 +96,8 @@ fun MainScreen() {
             val showBottomBar = currentRoute !in listOf(
                 Screen.BarcodeScan.route,
                 Screen.ManualInput.route,
-                Screen.InventoryRequestForm.route
+                Screen.InventoryRequestForm.route,
+                Screen.ReceivingInspection.route // Hide bottom bar on inspection screen
             )
             if (showBottomBar) {
                 BottomNavigationBar(navController = navController)
@@ -118,7 +122,7 @@ private fun BottomNavigationBar(navController: NavHostController) {
 
         bottomNavItems.forEach { (screen, details) ->
             val (title, icon) = details
-            val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+            val isSelected = currentDestination?.hierarchy?.any { it.route?.startsWith(screen.route) ?: false } == true
             NavigationBarItem(
                 icon = { Icon(icon, contentDescription = title) },
                 label = { Text(title) },
@@ -126,17 +130,15 @@ private fun BottomNavigationBar(navController: NavHostController) {
                 onClick = {
                     navController.navigate(screen.route) {
                         popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = screen.route != Screen.Home.route
+                            saveState = true
                         }
                         launchSingleTop = true
                         restoreState = true
                     }
                 },
                 colors = NavigationBarItemDefaults.colors(
-//                    selectedIconColor = Color(0xFF007BFF),
                     selectedIconColor = Color.Black,
                     selectedTextColor = Color.Black,
-//                    selectedTextColor = Color(0xFF007BFF),
                     unselectedIconColor = Color.Gray,
                     unselectedTextColor = Color.Gray,
                     indicatorColor = Color.White
@@ -150,11 +152,29 @@ private fun BottomNavigationBar(navController: NavHostController) {
 private fun NavigationGraph(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Screen.Home.route) {
         composable(Screen.Home.route) { HomeScreen(navController = navController) } 
-        composable(Screen.Receiving.route) { ReceivingScreen(navController = navController) }
+        
+        navigation(startDestination = Screen.ReceivingHome.route, route = Screen.Receiving.route) {
+            composable(Screen.ReceivingHome.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Receiving.route) }
+                val viewModel: ReceivingViewModel = viewModel(parentEntry)
+                ReceivingScreen(navController = navController, viewModel = viewModel)
+            }
+            composable(
+                route = Screen.ReceivingInspection.route,
+                 arguments = listOf(
+                    navArgument("supplier") { type = NavType.StringType },
+                    navArgument("date") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Receiving.route) }
+                val viewModel: ReceivingViewModel = viewModel(parentEntry)
+                ReceivingInspectionScreen(navController = navController, viewModel = viewModel)
+            }
+        }
+        
         composable(Screen.Releasing.route) { ReleasingScreen(navController = navController) }
         composable(Screen.Inventory.route) { InventoryScreen(navController = navController) }
         composable(Screen.More.route) { MoreScreen(navController = navController) }
-        composable(Screen.PendingItems.route) { PendingItemsScreen(navController = navController) }
         composable(Screen.InventoryRequestForm.route) { InventoryRequestFormScreen(navController = navController) }
 
         composable(
@@ -173,34 +193,6 @@ private fun NavigationGraph(navController: NavHostController) {
             ManualInputScreen(
                 navController = navController,
                 flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving"
-            )
-        }
-
-        composable(
-            route = Screen.ReceivingInspection.route,
-            arguments = listOf(
-                navArgument("supplier") { type = NavType.StringType },
-                navArgument("date") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            ReceivingInspectionScreen(
-                navController = navController,
-                supplier = backStackEntry.arguments?.getString("supplier") ?: "",
-                date = backStackEntry.arguments?.getString("date") ?: ""
-            )
-        }
-
-        composable(
-            route = Screen.ReleasingPicking.route,
-            arguments = listOf(
-                navArgument("customer") { type = NavType.StringType },
-                navArgument("date") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            ReleasingPickingScreen(
-                navController = navController,
-                customer = backStackEntry.arguments?.getString("customer") ?: "",
-                date = backStackEntry.arguments?.getString("date") ?: ""
             )
         }
 

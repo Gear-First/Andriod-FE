@@ -34,12 +34,18 @@ import java.util.*
 @Composable
 fun HomeScreen(navController: NavController) {
     var showDialogType by remember { mutableStateOf<String?>(null) }
+    var showNotificationDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = { HomeTopAppBar(scrollBehavior = scrollBehavior) },
+        topBar = {
+            HomeTopAppBar(
+                scrollBehavior = scrollBehavior,
+                onNotificationClick = { showNotificationDialog = true }
+            )
+        },
         containerColor = Color.White
     ) { innerPadding ->
         Column(
@@ -64,15 +70,19 @@ fun HomeScreen(navController: NavController) {
         "inventory" -> InventoryChartModal { showDialogType = null }
         "weekly" -> WeeklyInOutChartModal { showDialogType = null }
     }
+
+    if (showNotificationDialog) {
+        NotificationDialog(onDismiss = { showNotificationDialog = false })
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeTopAppBar(scrollBehavior: TopAppBarScrollBehavior) {
+fun HomeTopAppBar(scrollBehavior: TopAppBarScrollBehavior, onNotificationClick: () -> Unit) {
     TopAppBar(
         title = { Text("Gear First", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = Color(0xFF007BFF)) },
         actions = {
-            IconButton(onClick = { /* 알림 화면으로 이동 */ }) {
+            IconButton(onClick = onNotificationClick) {
                 Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
             }
         },
@@ -124,10 +134,10 @@ fun StatusCards(navController: NavController) {
                 onClick = { navController.navigate(Screen.Inventory.route) }
             )
             StatusCard(
-                title = "처리 대기 품목",
+                title = "불량재고",
                 count = "6개",
                 modifier = Modifier.weight(1f),
-                onClick = { navController.navigate(Screen.PendingItems.route) }
+                onClick = { navController.navigate(Screen.InventoryRequestForm.route) }
             )
         }
     }
@@ -192,6 +202,50 @@ fun ChartItem(icon: ImageVector, label: String, onClick: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
         Text(label, fontSize = 16.sp)
     }
+}
+
+data class NotificationItem(val title: String, val content: String, val time: String)
+
+@Composable
+fun NotificationDialog(onDismiss: () -> Unit) {
+    val notifications = remember {
+        listOf(
+            NotificationItem("새로운 공지", "시스템 점검이 2024-09-15에 예정되어 있습니다.", "1시간 전"),
+            NotificationItem("입고 완료", "SKU-12345 상품이 입고되었습니다.", "3시간 전"),
+            NotificationItem("재고 부족 알림", "상품 '''샘플-A'''의 재고가 10개 미만입니다.", "1일 전"),
+            NotificationItem("출고 예정", "주문 #98765에 대한 상품 출고가 예정되어 있습니다.", "2일 전")
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("알림", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                notifications.forEach { notification ->
+                    Column {
+                        Text(notification.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(notification.content, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = notification.time,
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.align(Alignment.End)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("닫기")
+            }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(12.dp)
+    )
 }
 
 @Composable

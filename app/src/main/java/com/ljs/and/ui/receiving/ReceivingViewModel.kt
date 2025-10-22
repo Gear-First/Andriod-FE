@@ -12,23 +12,21 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// --- Data Classes for UI State ---
-
 data class ReceivingItem(
-    val id: String, // 입고번호
-    val supplier: String, // 거래처
-    val expectedDate: String, // 입고 예정일
-    val completionDate: String?, // 입고 완료일
-    val totalQuantity: Int, // 총 수량
-    val manager: String, // 담당자
-    var status: String // 상태 (예: 대기, 완료)
+    val id: String,
+    val supplier: String,
+    val expectedDate: String,
+    val completionDate: String?,
+    val totalQuantity: Int,
+    val manager: String,
+    var status: String
 )
 
 data class InspectionItem(
     val id: String,
     val receivingId: String,
     val partName: String,
-    val partCode: String, // 부품 코드
+    val partCode: String,
     val quantity: Int,
     val location: String,
     val imageUrl: Int? = null,
@@ -40,7 +38,8 @@ data class ReceivingUiState(
     val inspectionList: List<InspectionItem> = emptyList(),
     val selectedReceivingItem: ReceivingItem? = null,
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val currentInspectionItemId: String? = null // 현재 검수중인 아이템 ID
 )
 
 class ReceivingViewModel : ViewModel() {
@@ -78,6 +77,17 @@ class ReceivingViewModel : ViewModel() {
         }
     }
 
+    fun setCurrentInspectionItem(itemId: String) {
+        _uiState.update { it.copy(currentInspectionItemId = itemId) }
+    }
+
+    fun completeCurrentInspection() {
+        _uiState.value.currentInspectionItemId?.let { itemId ->
+            completeInspection(itemId)
+            _uiState.update { it.copy(currentInspectionItemId = null) } // 처리 후 ID 초기화
+        }
+    }
+
     fun completeInspection(itemId: String) {
         _uiState.update { currentState ->
             val updatedList = currentState.inspectionList.map {
@@ -103,8 +113,6 @@ class ReceivingViewModel : ViewModel() {
             currentState.copy(receivingList = updatedReceivingList, inspectionList = emptyList(), selectedReceivingItem = null)
         }
     }
-
-    // --- Dummy Data Generators ---
 
     private fun getDummyReceivingItems(): List<ReceivingItem> {
         val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())

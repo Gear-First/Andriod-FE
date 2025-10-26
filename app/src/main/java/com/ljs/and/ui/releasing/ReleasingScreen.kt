@@ -227,7 +227,7 @@ fun PendingCard(item: ReleasingItem, onStartPicking: () -> Unit) {
             }
             Text("출고번호: ${item.id}", fontSize = 14.sp, color = Color.Gray)
             Text("출고 예정일: ${item.expectedDate}", fontSize = 14.sp, color = Color.Gray)
-            Text("품목 수량 요약: ${item.totalQuantity}개", fontSize = 14.sp, color = Color.Gray)
+            Text("품목 수량: ${item.totalQuantity}개", fontSize = 14.sp, color = Color.Gray)
             
             Spacer(modifier = Modifier.height(8.dp))
             

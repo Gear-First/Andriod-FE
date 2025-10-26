@@ -82,7 +82,7 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
                 buttonText = bottomButtonText
             )
         },
-        containerColor = Color(0xFFF0F2F5)
+        containerColor = Color.White
     ) { innerPadding ->
         Column(
             modifier = Modifier

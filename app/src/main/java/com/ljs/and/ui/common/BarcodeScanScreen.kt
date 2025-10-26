@@ -2,6 +2,8 @@ package com.ljs.and.ui.common
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -10,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -29,7 +32,6 @@ fun BarcodeScanScreen(navController: NavController, flowType: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // .padding(16.dp) // 👈 Column 전체에 적용되던 padding 제거
             .background(Color.White),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -37,8 +39,7 @@ fun BarcodeScanScreen(navController: NavController, flowType: String) {
             "QR 인식",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            // 👇 제목에만 위쪽과 좌우 여백(padding) 추가
-            modifier = Modifier.padding(top = 16.dp, start = 16.dp, end = 16.dp) // 👈 변경됨
+            modifier = Modifier.padding(top = 80.dp)
         )
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -60,27 +61,35 @@ fun BarcodeScanScreen(navController: NavController, flowType: String) {
 @Composable
 fun ScanModeTabs(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (Int) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(0.7f),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier
+            .fillMaxWidth(0.7f)
+            .height(48.dp)
+            .clip(RoundedCornerShape(30))
+            .border(BorderStroke(1.dp, Color.LightGray), RoundedCornerShape(30))
     ) {
         tabs.forEachIndexed { index, title ->
             val isSelected = selectedTabIndex == index
-            val containerColor = if (isSelected) Color(0xFF007BFF) else Color.White
-            val contentColor = if (isSelected) Color.White else Color.Black
-            val border = if (isSelected) null else BorderStroke(1.dp, Color.LightGray)
+            val backgroundColor = if (isSelected) Color(0xFF007BFF) else Color.White
+            val textColor = if (isSelected) Color.White else Color.Black
 
-            Button(
-                onClick = { onTabSelected(index) },
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = containerColor,
-                    contentColor = contentColor
-                ),
-                border = border,
-                modifier = Modifier.weight(1f)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(backgroundColor)
+                    .clickable { onTabSelected(index) },
+                contentAlignment = Alignment.Center
             ) {
-                Text(title)
+                Text(text = title, color = textColor)
+            }
+
+            if (index == 0) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(1.dp)
+                        .background(Color.LightGray)
+                )
             }
         }
     }
@@ -107,10 +116,9 @@ fun CameraPreview() {
 @Composable
 fun ScanActionButtons(onCancel: () -> Unit, onManualInput: () -> Unit) {
     Row(
-        // 👇 하단 버튼 Row에만 좌우, 아래 여백(padding) 추가
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 16.dp), // 👈 변경됨
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         OutlinedButton(

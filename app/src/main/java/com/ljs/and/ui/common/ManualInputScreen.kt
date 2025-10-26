@@ -1,5 +1,6 @@
 package com.ljs.and.ui.common
 
+import android.R.attr.onClick
 import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -39,7 +40,8 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
 
     var itemNumber by remember { mutableStateOf(if (isReceiving) "IN - ABCD" else "OUT - EFGH") }
     var partner by remember { mutableStateOf("현대 모비스") }
-    var partNameAndCode by remember { mutableStateOf("엔진 오일 / EO-12345") }
+    var partName by remember { mutableStateOf("엔진 오일") }
+    var partCode by remember { mutableStateOf("EO-12345") }
     var quantity by remember { mutableStateOf("100") }
     var storageLocation by remember { mutableStateOf("A - 30") }
     var user by remember { mutableStateOf("홍길동") }
@@ -52,55 +54,44 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
     val isFormValid by derivedStateOf {
         itemNumber.isNotBlank() &&
                 partner.isNotBlank() &&
-                partNameAndCode.isNotBlank() &&
+                partName.isNotBlank() &&
+                partCode.isNotBlank() &&
                 quantity.isNotBlank() &&
                 storageLocation.isNotBlank() &&
                 user.isNotBlank() &&
-                (!isDefective || (defectType != null && remarks.isNotBlank()))
+                (!isDefective || (defectType != null))
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(title, fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF5F5F7))
             )
         },
-        bottomBar = {
-            ManualInputBottomBar(
-                onCancel = { navController.popBackStack() },
-                onComplete = {
-                    if (isReceiving) {
-                        navController.getBackStackEntry(Screen.ReceivingInspection.route).savedStateHandle["manualInputCompleted"] = true
-                        navController.popBackStack(Screen.ReceivingInspection.route, false)
-                    } else { // Releasing
-                        navController.getBackStackEntry(Screen.ReleasingPicking.route).savedStateHandle["manualInputCompleted"] = true
-                        navController.popBackStack(Screen.ReleasingPicking.route, false)
-                    }
-                },
-                isCompleteEnabled = isFormValid,
-                buttonText = bottomButtonText
-            )
-        },
-        containerColor = Color.White
+        containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(
+                    top = innerPadding.calculateTopPadding(), // 👈 탑바와 카드 사이 여유
+                    bottom = innerPadding.calculateBottomPadding()
+                )
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text("부품 정보", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    TitledTextField(label = "부품명/코드", value = partNameAndCode, onValueChange = { partNameAndCode = it })
+                    TitledTextField(label = "부품명", value = partName, onValueChange = { partName = it })
+                    TitledTextField(label = "부품코드", value = partCode, onValueChange = { partCode = it })
                     TitledTextField(label = partnerLabel, value = partner, onValueChange = { partner = it })
                     TitledTextField(label = idLabel, value = itemNumber, onValueChange = { itemNumber = it })
                 }
@@ -109,7 +100,7 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -136,7 +127,7 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -150,6 +141,21 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
                     )
                 }
             }
+
+            ManualInputBottomBar(
+                onCancel = { navController.popBackStack() },
+                onComplete = {
+                    if (isReceiving) {
+                        navController.getBackStackEntry(Screen.ReceivingInspection.route).savedStateHandle["manualInputCompleted"] = true
+                        navController.popBackStack(Screen.ReceivingInspection.route, false)
+                    } else { // Releasing
+                        navController.getBackStackEntry(Screen.ReleasingPicking.route).savedStateHandle["manualInputCompleted"] = true
+                        navController.popBackStack(Screen.ReleasingPicking.route, false)
+                    }
+                },
+                isCompleteEnabled = isFormValid,
+                buttonText = bottomButtonText
+            )
         }
     }
 }
@@ -269,9 +275,7 @@ fun DefectSelection(
 fun ManualInputBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isCompleteEnabled: Boolean, buttonText: String) {
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .padding(16.dp),
+            .fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         OutlinedButton(
@@ -280,8 +284,11 @@ fun ManualInputBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isComplet
                 .weight(1f)
                 .height(48.dp),
             shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, Color.LightGray)
-        ) {
+            border = BorderStroke(1.dp, Color.LightGray),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.White,
+                contentColor = Color.Black)
+            ) {
             Text("취소", color = Color.Black)
         }
         Spacer(modifier = Modifier.width(16.dp))

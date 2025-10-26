@@ -1,6 +1,5 @@
 package com.ljs.and.ui.common
 
-import android.R.attr.onClick
 import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -75,7 +74,7 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    top = innerPadding.calculateTopPadding(),
+                    top = innerPadding.calculateTopPadding() - 15.dp,
                     bottom = innerPadding.calculateBottomPadding()
                 )
                 .padding(16.dp)
@@ -275,8 +274,9 @@ fun DefectSelection(
 fun ManualInputBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isCompleteEnabled: Boolean, buttonText: String) {
     Row(
         modifier = Modifier
-            .fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
+            .fillMaxWidth()
+            .padding(horizontal = 2.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(0.5.dp)
     ) {
         OutlinedButton(
             onClick = onCancel,
@@ -284,14 +284,15 @@ fun ManualInputBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isComplet
                 .weight(1f)
                 .height(48.dp),
             shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, Color.LightGray),
+            border = BorderStroke(0.dp, Color.LightGray),
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = Color.White,
-                contentColor = Color.Black)
+                contentColor = Color.Black),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 4.dp)
             ) {
             Text("취소", color = Color.Black)
         }
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(24.dp))
         Button(
             onClick = onComplete,
             modifier = Modifier
@@ -302,7 +303,8 @@ fun ManualInputBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isComplet
                 containerColor = Color(0xFF007BFF),
                 disabledContainerColor = Color.LightGray
             ),
-            enabled = isCompleteEnabled
+            enabled = isCompleteEnabled,
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 4.dp)
         ) {
             Text(buttonText, color = Color.White)
         }

@@ -49,11 +49,22 @@ fun BarcodeScanScreen(navController: NavController, flowType: String) {
 
         CameraPreview()
 
-        Spacer(modifier = Modifier.weight(1f))
+//        Spacer(modifier = Modifier.weight(1f))
 
+        Spacer(modifier = Modifier.height(230.dp))
+
+//        ScanActionButtons(
+//            onCancel = { navController.popBackStack() },
+//            onManualInput = { navController.navigate(Screen.ManualInput.createRoute(if (selectedTabIndex == 0) "receiving" else "releasing")) }
+//        )
         ScanActionButtons(
             onCancel = { navController.popBackStack() },
-            onManualInput = { navController.navigate(Screen.ManualInput.createRoute(if (selectedTabIndex == 0) "receiving" else "releasing")) }
+            onManualInput = {
+                navController.navigate(
+                    Screen.ManualInput.createRoute(if (selectedTabIndex == 0) "receiving" else "releasing")
+                )
+            },
+            modifier = Modifier.padding(bottom = 40.dp)
         )
     }
 }
@@ -114,7 +125,8 @@ fun CameraPreview() {
 }
 
 @Composable
-fun ScanActionButtons(onCancel: () -> Unit, onManualInput: () -> Unit) {
+fun ScanActionButtons(onCancel: () -> Unit, onManualInput: () -> Unit, modifier: Modifier = Modifier
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

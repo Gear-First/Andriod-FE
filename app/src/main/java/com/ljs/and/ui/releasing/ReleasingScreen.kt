@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -249,13 +250,25 @@ fun PendingCard(item: ReleasingItem, onStartPicking: () -> Unit) {
             
             Spacer(modifier = Modifier.height(8.dp))
 
-            Button(
-                onClick = onStartPicking,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                Text("피킹 시작", color = Color.White, fontWeight = FontWeight.Bold)
+                Button(
+                    onClick = onStartPicking,
+                    modifier = Modifier
+                        .width(330.dp)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
+                ) {
+                    Text(
+                        "피킹 시작",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

@@ -3,7 +3,6 @@ package com.ljs.and.ui.receiving
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,14 +34,12 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.ljs.and.ui.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,7 +98,10 @@ fun ReceivingInspectionScreen(
         bottomBar = {
             InspectionBottomBar(
                 isReadOnly = isReadOnly,
-                onConfirm = { navController.popBackStack() },
+                onConfirm = { 
+                    navController.previousBackStackEntry?.savedStateHandle?.set("selectedTab", 1)
+                    navController.popBackStack() 
+                },
                 onCancel = { navController.popBackStack() },
                 onComplete = {
                     viewModel.completeAllInspections()
@@ -110,25 +110,19 @@ fun ReceivingInspectionScreen(
                 isCompleteEnabled = allItemsCompleted
             )
         },
-        containerColor = Color.White
+        containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
         if (uiState.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else if (selectedItem != null) {
-            Column(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize()
-                    .background(Color.White)
-            ) {
+            Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
                 InspectionHeader(supplier = selectedItem.supplier, date = selectedItem.expectedDate)
                 InspectionList(
                     items = inspectionList,
                     selectedReceivingItem = selectedItem,
                     isReadOnly = isReadOnly,
-                    navController = navController,
                     onItemClick = { itemId ->
                         viewModel.setCurrentInspectionItem(itemId)
                         navController.navigate(Screen.BarcodeScan.createRoute("receiving"))
@@ -170,11 +164,23 @@ fun InspectionTopAppBar(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent
                     )
                 )
             } else {
                 Text(if(isReadOnly) "입고 상세" else "검수 중", fontWeight = FontWeight.Bold)
+            }
+        },
+        navigationIcon = {
+             if (isSearchVisible) {
+                IconButton(onClick = { onSearchVisibilityChange(false) }) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+            } else {
+                 IconButton(onClick = onNavigateBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
             }
         },
         actions = {
@@ -182,7 +188,7 @@ fun InspectionTopAppBar(
                 Icon(Icons.Filled.Search, contentDescription = "Search")
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF5F5F7))
     )
 }
 
@@ -191,12 +197,12 @@ fun InspectionHeader(supplier: String, date: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text("공급 업체: $supplier", fontSize = 14.sp, color = Color.Gray)
+            Text("공급 업체: $supplier", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Text("날짜: $date", fontSize = 14.sp, color = Color.Gray)
         }
     }
@@ -207,12 +213,11 @@ fun InspectionList(
     items: List<InspectionItem>,
     selectedReceivingItem: ReceivingItem,
     isReadOnly: Boolean,
-    navController: NavController,
     onItemClick: (String) -> Unit
 ) {
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         items(items) { item ->
             InspectionItemCard(
@@ -228,38 +233,56 @@ fun InspectionList(
 @Composable
 fun InspectionItemCard(item: InspectionItem, receivingItem: ReceivingItem, isReadOnly: Boolean, onClick: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick, enabled = !isReadOnly),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            item.imageUrl?.let {
-                Image(
-                    painter = painterResource(id = it),
-                    contentDescription = "Product Image",
-                    modifier = Modifier.size(60.dp).padding(end = 16.dp)
-                )
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if(item.isInspected) "검수완료" else "검수중",
-                        color = if(item.isInspected) Color(0xFF007BFF) else Color.Red,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(receivingItem.supplier, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                }
-                Text("${item.partName} / ${item.partCode}", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text("입고번호: ${item.receivingId}", fontSize = 12.sp, color = Color.Gray)
-                Text("입고수량: ${item.quantity}", fontSize = 12.sp, color = Color.Gray)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(receivingItem.supplier, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("${item.partName} / ${item.partCode}", fontSize = 14.sp)
+                Text("입고 번호: ${item.receivingId}", fontSize = 12.sp, color = Color.Gray)
+                Text("입고 수량: ${item.quantity}", fontSize = 12.sp, color = Color.Gray)
                 Text("위치: ${item.location}", fontSize = 12.sp, color = Color.Gray)
                 Text("담당자: ${receivingItem.manager}", fontSize = 12.sp, color = Color.Gray)
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item.imageUrl?.let {
+                    Image(
+                        painter = painterResource(id = it),
+                        contentDescription = "Product Image",
+                        modifier = Modifier.size(80.dp)
+                    )
+                }
+                val isInspected = item.isInspected
+                OutlinedButton(
+                    onClick = onClick,
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, if (isInspected) Color(0xFF007BFF) else Color.Red),
+                    enabled = !isReadOnly && !isInspected
+                ) {
+                    Text(
+                        text = if (isInspected) "검수완료" else "검수 중",
+                        color = if (isInspected) Color(0xFF007BFF) else Color.Red,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
@@ -273,43 +296,60 @@ fun InspectionBottomBar(
     onComplete: () -> Unit,
     isCompleteEnabled: Boolean
 ) {
-    if (isReadOnly) {
-        Row(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Button(
-                onClick = onConfirm,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
+    Surface(
+        shadowElevation = 8.dp,
+        color = Color(0xFFF5F5F7)
+    ) {
+        if (isReadOnly) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 24.dp)
             ) {
-                Text("확인", color = Color.White)
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
+                ) {
+                    Text("확인", color = Color.White)
+                }
             }
-        }
-    } else {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            OutlinedButton(
-                onClick = onCancel,
-                modifier = Modifier.weight(1f).height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color.LightGray)
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 24.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("취소", color = Color.Black)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Button(
-                onClick = onComplete,
-                modifier = Modifier.weight(1f).height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isCompleteEnabled) Color(0xFF007BFF) else Color.LightGray
-                ),
-                enabled = isCompleteEnabled
-            ) {
-                Text("검수 완료", color = Color.White)
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color.LightGray)
+                ) {
+                    Text("취소", color = Color.Black)
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Button(
+                    onClick = onComplete,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF007BFF),
+                        disabledContainerColor = Color.LightGray
+                    ),
+                    enabled = isCompleteEnabled
+                ) {
+                    Text("검수 완료", color = Color.White)
+                }
             }
         }
     }

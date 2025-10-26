@@ -1,7 +1,7 @@
 package com.ljs.and.ui.receiving
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,19 +43,26 @@ fun ReceivingScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTabIndex by remember { mutableStateOf(0) }
-    val tabs = listOf("입고 대기", "입고 완료") // 탭 이름 수정
+    val tabs = listOf("입고 대기", "입고 완료")
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
     val (pendingItems, completedItems) = uiState.receivingList.partition { it.status == "대기" }
+    
+    LaunchedEffect(key1 = navController.currentBackStackEntry) {
+        navController.currentBackStackEntry?.savedStateHandle?.get<Int>("selectedTab")?.let {
+            selectedTabIndex = it
+            navController.currentBackStackEntry?.savedStateHandle?.remove<Int>("selectedTab")
+        }
+    }
 
     Scaffold(
-        topBar = { 
+        topBar = {
             ReceivingTopAppBar(
-                isSearchVisible = isSearchVisible, 
-                searchQuery = searchQuery, 
-                onSearchQueryChange = { searchQuery = it }, 
+                isSearchVisible = isSearchVisible,
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
                 onSearchVisibilityChange = { isSearchVisible = it },
                 onPerformSearch = {
                     if (searchQuery.isNotBlank()) {
@@ -64,9 +71,9 @@ fun ReceivingScreen(
                     isSearchVisible = false
                     focusManager.clearFocus()
                 }
-            ) 
+            )
         },
-        containerColor = Color.White
+        containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
             ReceivingTabRow(
@@ -112,7 +119,7 @@ fun ReceivingTopAppBar(
     val focusManager = LocalFocusManager.current
 
     TopAppBar(
-        title = { 
+        title = {
             if (isSearchVisible) {
                 TextField(
                     value = searchQuery,
@@ -129,7 +136,8 @@ fun ReceivingTopAppBar(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
                     )
                 )
             } else {
@@ -145,7 +153,7 @@ fun ReceivingTopAppBar(
         },
         actions = {
             if (isSearchVisible) {
-                 IconButton(onClick = { 
+                 IconButton(onClick = {
                      onPerformSearch()
                      focusManager.clearFocus()
                  }) {
@@ -158,7 +166,7 @@ fun ReceivingTopAppBar(
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White
+            containerColor = Color(0xFFF5F5F7)
         )
     )
 }
@@ -174,21 +182,29 @@ fun ReceivingTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (I
     ) {
         tabs.forEachIndexed { index, title ->
             val isSelected = selectedTabIndex == index
-            val containerColor = if (isSelected) Color(0xFF007BFF) else Color.White
-            val contentColor = if (isSelected) Color.White else Color.Black
-            val border = if (isSelected) null else BorderStroke(1.dp, Color.LightGray)
-
-            Button(
-                onClick = { onTabSelected(index) },
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = containerColor,
-                    contentColor = contentColor
-                ),
-                border = border,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            ) {
-                Text(title)
+            if (isSelected) {
+                OutlinedButton(
+                    onClick = { onTabSelected(index) },
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, Color(0xFF007BFF)),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    Text(title, color = Color(0xFF007BFF), fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Button(
+                    onClick = { onTabSelected(index) },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black
+                    ),
+                    border = BorderStroke(1.dp, Color.LightGray),
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    Text(title)
+                }
             }
         }
     }
@@ -200,8 +216,8 @@ fun PendingScreen(pendingList: List<ReceivingItem>, onItemClick: (ReceivingItem)
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(bottom = 16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
     ) {
         items(pendingList) { item ->
             PendingCard(item = item, onStartInspection = { onItemClick(item) })
@@ -214,30 +230,46 @@ fun PendingCard(item: ReceivingItem, onStartInspection: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp))
             .clickable(onClick = onStartInspection),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("공급처: ${item.supplier}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(item.status, color = Color.Red, fontWeight = FontWeight.Bold)
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(Modifier.fillMaxWidth()) {
+                Text(
+                    text = "공급 업체: ${item.supplier}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                )
+                Text(
+                    text = item.status,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .background(Color.Red, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
             }
             Text("입고번호: ${item.id}", fontSize = 14.sp, color = Color.Gray)
             Text("입고 예정일: ${item.expectedDate}", fontSize = 14.sp, color = Color.Gray)
             Text("품목 수량: ${item.totalQuantity}개", fontSize = 14.sp, color = Color.Gray)
             
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Button(
                 onClick = onStartInspection,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
             ) {
-                Text("검수 시작", color = Color.White)
+                Text("검수 시작", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }

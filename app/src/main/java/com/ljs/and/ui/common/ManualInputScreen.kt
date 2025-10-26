@@ -75,7 +75,7 @@ fun ManualInputScreen(navController: NavController, flowType: String) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    top = innerPadding.calculateTopPadding(), // 👈 탑바와 카드 사이 여유
+                    top = innerPadding.calculateTopPadding(),
                     bottom = innerPadding.calculateBottomPadding()
                 )
                 .padding(16.dp)

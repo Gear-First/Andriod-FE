@@ -1,11 +1,8 @@
 package com.ljs.and.ui.home
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -18,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -35,34 +31,25 @@ import java.util.*
 fun HomeScreen(navController: NavController) {
     var showDialogType by remember { mutableStateOf<String?>(null) }
     var showNotificationDialog by remember { mutableStateOf(false) }
-    val scrollState = rememberScrollState()
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            HomeTopAppBar(
-                scrollBehavior = scrollBehavior,
-                onNotificationClick = { showNotificationDialog = true }
-            )
+            HomeTopAppBar(onNotificationClick = { showNotificationDialog = true })
         },
-        containerColor = Color.White
+        containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp)
-                .verticalScroll(scrollState)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceAround,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
             GreetingSection()
-            Spacer(modifier = Modifier.height(24.dp))
             StatusCards(navController)
-            Spacer(modifier = Modifier.height(24.dp))
             ChartSection { dialogType -> showDialogType = dialogType }
-            Spacer(modifier = Modifier.height(24.dp))
             QuickActions(navController)
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
@@ -78,7 +65,7 @@ fun HomeScreen(navController: NavController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeTopAppBar(scrollBehavior: TopAppBarScrollBehavior, onNotificationClick: () -> Unit) {
+fun HomeTopAppBar(onNotificationClick: () -> Unit) {
     TopAppBar(
         title = { Text("Gear First", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = Color(0xFF007BFF)) },
         actions = {
@@ -86,8 +73,7 @@ fun HomeTopAppBar(scrollBehavior: TopAppBarScrollBehavior, onNotificationClick: 
                 Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-        scrollBehavior = scrollBehavior
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF5F5F7))
     )
 }
 
@@ -148,7 +134,7 @@ fun StatusCard(title: String, count: String, modifier: Modifier = Modifier, onCl
     Card(
         modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, Color.LightGray),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(
@@ -166,9 +152,11 @@ fun StatusCard(title: String, count: String, modifier: Modifier = Modifier, onCl
 @Composable
 fun ChartSection(onChartClick: (String) -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, Color.LightGray),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
@@ -276,10 +264,10 @@ fun QuickActions(navController: NavController) {
 fun QuickAction(icon: ImageVector, label: String, onClick: () -> Unit) {
     Card(
         modifier = Modifier
-            .size(100.dp)
+            .size(120.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, Color.LightGray),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(
@@ -298,7 +286,6 @@ fun QuickAction(icon: ImageVector, label: String, onClick: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     AndTheme {
         HomeScreen(navController = rememberNavController())
     }

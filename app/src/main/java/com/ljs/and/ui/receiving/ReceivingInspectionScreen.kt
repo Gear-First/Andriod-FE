@@ -233,7 +233,12 @@ fun InspectionList(
 @Composable
 fun InspectionItemCard(item: InspectionItem, receivingItem: ReceivingItem, isReadOnly: Boolean, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                enabled = !isReadOnly && !item.isInspected,
+                onClick = onClick
+            ),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -272,7 +277,7 @@ fun InspectionItemCard(item: InspectionItem, receivingItem: ReceivingItem, isRea
                 }
                 val isInspected = item.isInspected
                 OutlinedButton(
-                    onClick = onClick,
+                    onClick = { /* 아무것도 안함 */ },
                     shape = RoundedCornerShape(20.dp),
                     border = BorderStroke(1.dp, if (isInspected) Color(0xFF007BFF) else Color.Red),
                     enabled = !isReadOnly && !isInspected

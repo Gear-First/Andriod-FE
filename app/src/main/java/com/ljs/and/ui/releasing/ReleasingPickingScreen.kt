@@ -3,6 +3,7 @@ package com.ljs.and.ui.releasing
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -232,7 +233,12 @@ fun PickingList(
 @Composable
 fun PickingItemCard(item: PickingItem, releasingItem: ReleasingItem, isReadOnly: Boolean, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                enabled = !isReadOnly && !item.isPicked,
+                onClick = onClick
+            ),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -271,7 +277,7 @@ fun PickingItemCard(item: PickingItem, releasingItem: ReleasingItem, isReadOnly:
                 }
                 val isPicked = item.isPicked
                 OutlinedButton(
-                    onClick = onClick,
+                    onClick = { /* 아무것도 안함 */ },
                     shape = RoundedCornerShape(20.dp),
                     border = BorderStroke(1.dp, if (isPicked) Color(0xFF007BFF) else Color.Red),
                     enabled = !isReadOnly && !isPicked

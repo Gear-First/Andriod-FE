@@ -12,6 +12,27 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+data class ReleasingItem(
+    val id: String,
+    val customer: String,
+    val expectedDate: String,
+    val completionDate: String? = null,
+    val totalQuantity: Int,
+    val manager: String,
+    val status: String
+)
+
+data class PickingItem(
+    val id: String,
+    val releasingId: String,
+    val partName: String,
+    val partCode: String,
+    val quantity: Int,
+    val location: String,
+    val isPicked: Boolean = false,
+    val imageUrl: Int? = null
+)
+
 data class ReleasingUiState(
     val releasingList: List<ReleasingItem> = emptyList(),
     val pickingList: List<PickingItem> = emptyList(),

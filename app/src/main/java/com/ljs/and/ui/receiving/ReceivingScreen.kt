@@ -75,7 +75,7 @@ fun ReceivingScreen(
         },
         containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
+        Column(modifier = Modifier.padding(top = innerPadding.calculateTopPadding())) {
             ReceivingTabRow(
                 selectedTabIndex = selectedTabIndex,
                 tabs = tabs,

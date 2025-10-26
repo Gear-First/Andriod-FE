@@ -297,7 +297,7 @@ fun InspectionBottomBar(
     isCompleteEnabled: Boolean
 ) {
     Surface(
-        shadowElevation = 8.dp,
+//        shadowElevation = 8.dp,
         color = Color(0xFFF5F5F7)
     ) {
         if (isReadOnly) {

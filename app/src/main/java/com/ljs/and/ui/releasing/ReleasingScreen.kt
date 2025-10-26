@@ -1,7 +1,7 @@
 package com.ljs.and.ui.releasing
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +50,13 @@ fun ReleasingScreen(
 
     val (pendingItems, completedItems) = uiState.releasingList.partition { it.status == "대기" }
 
+    LaunchedEffect(key1 = navController.currentBackStackEntry) {
+        navController.currentBackStackEntry?.savedStateHandle?.get<Int>("selectedTab")?.let {
+            selectedTabIndex = it
+            navController.currentBackStackEntry?.savedStateHandle?.remove<Int>("selectedTab")
+        }
+    }
+
     Scaffold(
         topBar = { 
             ReleasingTopAppBar(
@@ -66,9 +73,9 @@ fun ReleasingScreen(
                 }
             ) 
         },
-        containerColor = Color.White
+        containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
+        Column(modifier = Modifier.padding(top = innerPadding.calculateTopPadding())) {
             ReleasingTabRow(
                 selectedTabIndex = selectedTabIndex,
                 tabs = tabs,
@@ -129,7 +136,8 @@ fun ReleasingTopAppBar(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent
                     )
                 )
             } else {
@@ -144,22 +152,11 @@ fun ReleasingTopAppBar(
             }
         },
         actions = {
-            if (isSearchVisible) {
-                 IconButton(onClick = { 
-                     onPerformSearch()
-                     focusManager.clearFocus()
-                 }) {
-                    Icon(Icons.Filled.Search, contentDescription = "Search")
-                }
-            } else {
-                IconButton(onClick = { onSearchVisibilityChange(true) }) {
-                    Icon(Icons.Filled.Search, contentDescription = "Search")
-                }
+            IconButton(onClick = { onSearchVisibilityChange(!isSearchVisible) }) {
+                Icon(Icons.Filled.Search, contentDescription = "Search")
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White
-        )
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF5F5F7))
     )
 }
 
@@ -174,21 +171,29 @@ fun ReleasingTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (I
     ) {
         tabs.forEachIndexed { index, title ->
             val isSelected = selectedTabIndex == index
-            val containerColor = if (isSelected) Color(0xFF007BFF) else Color.White
-            val contentColor = if (isSelected) Color.White else Color.Black
-            val border = if (isSelected) null else BorderStroke(1.dp, Color.LightGray)
-
-            Button(
-                onClick = { onTabSelected(index) },
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = containerColor,
-                    contentColor = contentColor
-                ),
-                border = border,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            ) {
-                Text(title)
+            if (isSelected) {
+                OutlinedButton(
+                    onClick = { onTabSelected(index) },
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, Color(0xFF007BFF)),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    Text(title, color = Color(0xFF007BFF), fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Button(
+                    onClick = { onTabSelected(index) },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black
+                    ),
+                    border = BorderStroke(1.dp, Color.LightGray),
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    Text(title)
+                }
             }
         }
     }
@@ -200,8 +205,8 @@ fun PendingScreen(pendingList: List<ReleasingItem>, onItemClick: (ReleasingItem)
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(bottom = 16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
     ) {
         items(pendingList) { item ->
             PendingCard(item = item, onStartPicking = { onItemClick(item) })
@@ -214,30 +219,43 @@ fun PendingCard(item: ReleasingItem, onStartPicking: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp))
             .clickable(onClick = onStartPicking),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("거래처: ${item.customer}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(item.status, color = Color.Red, fontWeight = FontWeight.Bold)
+            Box(Modifier.fillMaxWidth()) {
+                Text(
+                    text = "거래처: ${item.customer}", 
+                    fontWeight = FontWeight.Bold, 
+                    fontSize = 16.sp,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                )
+                Text(
+                    text = item.status,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .background(Color.Red, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
             }
             Text("출고번호: ${item.id}", fontSize = 14.sp, color = Color.Gray)
             Text("출고 예정일: ${item.expectedDate}", fontSize = 14.sp, color = Color.Gray)
             Text("품목 수량: ${item.totalQuantity}개", fontSize = 14.sp, color = Color.Gray)
             
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Button(
                 onClick = onStartPicking,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
             ) {
-                Text("피킹 시작", color = Color.White)
+                Text("피킹 시작", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }

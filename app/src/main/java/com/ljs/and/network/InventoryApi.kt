@@ -1,6 +1,6 @@
 package com.ljs.and.network
 
-import com.ljs.and.data.InventoryItem
+import com.ljs.and.ui.inventory.InventoryItem
 import retrofit2.Response
 import retrofit2.http.GET
 

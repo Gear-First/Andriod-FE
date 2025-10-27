@@ -1,9 +1,7 @@
-
 package com.ljs.and.ui.inventory
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -29,30 +28,27 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.ljs.and.data.InventoryItem
-import com.ljs.and.data.ItemStatus
 import com.ljs.and.ui.Screen
 import com.ljs.and.ui.theme.AndTheme
 
-private val dummyInventoryList = listOf(
-    InventoryItem(1, "IN-ABCD", "현대 모비스", "엔진 오일", "A-03-2", 3, 1, "https://picsum.photos/200", ItemStatus.COMPLETED, "이지수"),
-    InventoryItem(2, "IN-EFGH", "현대 오토에버", "타이어", "B-01-1", 5, 2, "https://picsum.photos/201", ItemStatus.DEFECTIVE, "김철수"),
-    InventoryItem(3, "IN-IJKL", "기아", "브레이크 패드", "C-02-3", 10, 5, "https://picsum.photos/202", ItemStatus.NORMAL, "박영희"),
-    InventoryItem(4, "IN-MNOP", "GM", "헤드라이트", "D-04-5", 0, 3, "https://picsum.photos/203", ItemStatus.SOLD_OUT, "이민준"),
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InventoryScreen(navController: NavHostController) {
+fun InventoryScreen(
+    navController: NavHostController,
+    viewModel: InventoryViewModel = viewModel()
+) {
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("재고 조회", "재고 신청")
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
+
+    val inventoryState by viewModel.inventoryState.collectAsState()
 
     Scaffold(
         topBar = {
@@ -70,19 +66,26 @@ fun InventoryScreen(navController: NavHostController) {
                 }
             )
         },
-        containerColor = Color.White
+        containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
         Column(
             modifier = Modifier.padding(top = innerPadding.calculateTopPadding())
-            ) {
+        ) {
             InventoryTabRow(
                 selectedTabIndex = selectedTabIndex,
                 tabs = tabs,
                 onTabSelected = { selectedTabIndex = it }
             )
             when (selectedTabIndex) {
-                0 -> InventoryStatusScreen(navController, dummyInventoryList)
-                1 -> InventoryRequestScreen(navController = navController)
+                0 -> InventoryStatusScreen(
+                    inventoryState = inventoryState,
+                    onFilterChange = { viewModel.updateInventoryFilter(it) },
+                    onItemClick = { /* navController.navigate(...) */ }
+                )
+                1 -> InventoryRequestScreen(
+                    navController = navController,
+                    viewModel = viewModel
+                )
             }
         }
     }
@@ -146,7 +149,7 @@ fun InventoryTopAppBar(
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White
+            containerColor = Color(0xFFF5F5F7)
         )
     )
 }
@@ -183,40 +186,75 @@ fun InventoryTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (I
 }
 
 @Composable
-fun InventoryStatusScreen(navController: NavHostController, inventoryList: List<InventoryItem>) {
+fun InventoryStatusScreen(
+    inventoryState: InventoryState,
+    onFilterChange: (String) -> Unit,
+    onItemClick: (InventoryItem) -> Unit
+) {
+    val filteredList = remember(inventoryState.selectedFilter, inventoryState.inventoryList) {
+        when (inventoryState.selectedFilter) {
+            "정상" -> inventoryState.inventoryList.filter { it.status == ItemStatus.NORMAL }
+            "부족" -> inventoryState.inventoryList.filter { it.status == ItemStatus.LOW_STOCK || it.status == ItemStatus.SOLD_OUT }
+            else -> inventoryState.inventoryList
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
         item {
-            InventorySummaryCard(totalItems = 240, totalQuantity = 124800, lackingItems = 15)
+            InventorySummaryDashboard(
+                totalItems = inventoryState.totalItems,
+                totalQuantity = inventoryState.totalQuantity.toInt(), // Note: conversion to Int
+                lackingItems = inventoryState.lackingItems,
+                defectiveItems = inventoryState.defectiveItems
+            )
         }
         item {
-            FilterDropdown()
+            FilterDropdown(
+                selectedOption = inventoryState.selectedFilter,
+                onOptionSelected = onFilterChange
+            )
         }
-        items(inventoryList) { item ->
-            InventoryItemCard(item = item, onClick = {
-                // navController.navigate(Screen.InventoryDetail.createRoute(item.id))
-            })
+        items(filteredList) { item ->
+            InventoryItemCard(item = item, onClick = { onItemClick(item) })
+        }
+    }
+}
+
+@Composable
+fun InventorySummaryDashboard(totalItems: Int, totalQuantity: Int, lackingItems: Int, defectiveItems: Int) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("📦 총 품목: ${totalItems}종", fontSize = 16.sp)
+            Text("📊 전체 수량: ${totalQuantity}개", fontSize = 16.sp)
+            Text("⚠️ 부족 품목: ${lackingItems}개", fontSize = 16.sp)
+            Text("🛠️ 불량 품목: ${defectiveItems}개", fontSize = 16.sp)
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FilterDropdown() {
+fun FilterDropdown(selectedOption: String, onOptionSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val options = listOf("전체", "정상", "부족", "불량", "누락", "소진")
-    var selectedOptionText by remember { mutableStateOf(options[0]) }
+    val options = listOf("전체", "정상", "부족")
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
-        modifier = Modifier.background(Color.White)
+        onExpandedChange = { expanded = !expanded }
     ) {
         Row(
             modifier = Modifier
@@ -224,22 +262,23 @@ fun FilterDropdown() {
                 .clickable { expanded = true },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = selectedOptionText, fontWeight = FontWeight.Bold)
+            Text(text = selectedOption, fontWeight = FontWeight.Bold)
             Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = "Dropdown")
         }
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.widthIn(min = 80.dp).background(Color.White)
+            modifier = Modifier.background(Color.White).width(100.dp)
+
         ) {
             options.forEach { selectionOption ->
                 DropdownMenuItem(
                     text = { Text(selectionOption) },
                     onClick = {
-                        selectedOptionText = selectionOption
+                        onOptionSelected(selectionOption)
                         expanded = false
                     },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                 )
             }
         }
@@ -251,76 +290,79 @@ fun InventoryItemCard(item: InventoryItem, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp)),
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            item.imageUrl?.let {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current).data(it).crossfade(true).build(),
-                    contentDescription = item.name,
-                    modifier = Modifier.size(60.dp),
-                    contentScale = ContentScale.Crop
-                )
-            } ?: Box(modifier = Modifier.size(60.dp), contentAlignment = Alignment.Center) {
-                Icon(imageVector = Icons.Outlined.Build, contentDescription = "Inventory Item", modifier = Modifier.size(40.dp), tint = Color.Gray)
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text("공급 업체: ${item.supplier}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("부품명: ${item.name}", fontSize = 14.sp, color = Color.Gray)
-                Text("위치: ${item.location}", fontSize = 14.sp, color = Color.Gray)
-                Text("현재고: ${item.currentStock}", fontSize = 14.sp, color = Color.Gray)
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Text(
-                text = item.status.displayName,
-                color = when (item.status) {
-                    ItemStatus.NORMAL, ItemStatus.COMPLETED -> Color.Green
-                    ItemStatus.LOW_STOCK, ItemStatus.MISSING -> Color(0xFFFFA500) // Orange
-                    ItemStatus.DEFECTIVE, ItemStatus.SOLD_OUT -> Color.Red
-                },
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-fun InventorySummaryCard(totalItems: Int, totalQuantity: Int, lackingItems: Int) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            SummaryRow("총 품목:", "$totalItems 개")
-            SummaryRow("전체 수량:", "$totalQuantity 개")
-            SummaryRow("부족 품목:", "$lackingItems 개")
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text("${item.name} / ${item.code}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(item.supplier, fontSize = 14.sp)
+                Text("현재/최소: ${item.currentStock}/${item.minimumStock}", fontSize = 12.sp, color = Color.Gray)
+                Text("위치: ${item.location}", fontSize = 12.sp, color = Color.Gray)
+                Text("최근 입출고: ${item.lastTransactionDate}", fontSize = 12.sp, color = Color.Gray)
+                Text("담당자: ${item.manager ?: ""}", fontSize = 12.sp, color = Color.Gray)
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item.imageUrl?.let {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current).data(it).crossfade(true).build(),
+                        contentDescription = item.name,
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                } ?: Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(Color.LightGray, RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = Icons.Outlined.Build, contentDescription = "No Image", modifier = Modifier.size(40.dp), tint = Color.Gray)
+                }
+                StatusBadge(status = item.status)
+            }
         }
     }
 }
 
 @Composable
-fun SummaryRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+fun StatusBadge(status: ItemStatus) {
+    val (text, color) = when (status) {
+        ItemStatus.NORMAL, ItemStatus.COMPLETED -> "정상" to Color(0xFF28A745)
+        ItemStatus.LOW_STOCK -> "부족" to Color(0xFFFFC107)
+        ItemStatus.SOLD_OUT -> "소진" to Color(0xFFDC3545)
+        ItemStatus.DEFECTIVE -> "불량" to Color(0xFF6C757D)
+        else -> status.displayName to Color.Gray
+    }
+
+    OutlinedButton(
+        onClick = { /* 아무것도 안함 */ },
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, color)
     ) {
-        Text(text = label, fontSize = 16.sp, color = Color.Gray)
-        Text(text = value, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(
+            text = text,
+            color = color,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

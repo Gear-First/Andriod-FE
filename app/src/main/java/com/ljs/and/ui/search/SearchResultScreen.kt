@@ -29,7 +29,7 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ljs.and.R
-import com.ljs.and.data.ItemStatus
+import com.ljs.and.ui.inventory.ItemStatus
 
 // Data classes for different search result types
 sealed class SearchResult {

@@ -248,3 +248,6 @@ fun PendingItemsScreenPreview() {
         PendingItemsScreen(navController = rememberNavController())
     }
 }
+
+
+//메인 페이지의 처리 대기 화면 이동 페이지로 삭제해야 될 페이지.

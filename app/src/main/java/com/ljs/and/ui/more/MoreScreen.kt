@@ -1,16 +1,13 @@
 package com.ljs.and.ui.more
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -48,10 +45,10 @@ fun MoreScreen(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = { Text("더보기", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF5F5F7))
             )
         },
-        containerColor = Color.White
+        containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)){
             Column(
@@ -76,9 +73,8 @@ fun UserInfoSection() {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = Modifier.fillMaxWidth()
-            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth(),
         ) {
         Row(
             modifier = Modifier
@@ -106,11 +102,10 @@ fun MoreNavigationItem(text: String, onClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp)),
+            .clickable(onClick = onClick),
         ) {
         Row(
             modifier = Modifier

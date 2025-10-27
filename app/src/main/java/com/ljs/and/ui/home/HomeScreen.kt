@@ -120,7 +120,7 @@ fun StatusCards(navController: NavController) {
                 onClick = { navController.navigate(Screen.Inventory.route) }
             )
             StatusCard(
-                title = "불량재고",
+                title = "불량 재고 품목",
                 count = "6개",
                 modifier = Modifier.weight(1f),
                 onClick = { navController.navigate(Screen.InventoryRequestForm.route) }

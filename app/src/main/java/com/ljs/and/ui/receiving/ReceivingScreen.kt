@@ -183,29 +183,21 @@ fun ReceivingTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (I
     ) {
         tabs.forEachIndexed { index, title ->
             val isSelected = selectedTabIndex == index
-            if (isSelected) {
-                OutlinedButton(
-                    onClick = { onTabSelected(index) },
-                    shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, Color(0xFF007BFF)),
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                ) {
-                    Text(title, color = Color(0xFF007BFF), fontWeight = FontWeight.Bold)
-                }
-            } else {
-                Button(
-                    onClick = { onTabSelected(index) },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black
-                    ),
-                    border = BorderStroke(1.dp, Color.LightGray),
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                ) {
-                    Text(title)
-                }
+            val containerColor = if (isSelected) Color(0xFF007BFF) else Color.White
+            val contentColor = if (isSelected) Color.White else Color.Black
+            val border = if (isSelected) null else BorderStroke(1.dp, Color.LightGray)
+
+            Button(
+                onClick = { onTabSelected(index) },
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = containerColor,
+                    contentColor = contentColor
+                ),
+                border = border,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            ) {
+                Text(title, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
             }
         }
     }
@@ -269,17 +261,20 @@ fun PendingCard(item: ReceivingItem, onStartInspection: () -> Unit) {
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                Button(
+                OutlinedButton(
                     onClick = onStartInspection,
                     modifier = Modifier
                         .width(330.dp)
                         .height(44.dp),
                     shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
+                    border = BorderStroke(1.dp, Color(0xFF007BFF)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color.White,
+                        contentColor = Color(0xFF007BFF)
+                    )
                 ) {
                     Text(
                         "검수 시작",
-                        color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
                 }

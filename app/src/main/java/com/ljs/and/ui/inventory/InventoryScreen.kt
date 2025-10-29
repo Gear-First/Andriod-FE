@@ -3,7 +3,18 @@ package com.ljs.and.ui.inventory
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,6 +51,7 @@ import com.ljs.and.ui.theme.AndTheme
 @Composable
 fun InventoryScreen(
     navController: NavHostController,
+    filter: String?,
     viewModel: InventoryViewModel = viewModel()
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -49,6 +61,17 @@ fun InventoryScreen(
     val focusManager = LocalFocusManager.current
 
     val inventoryState by viewModel.inventoryState.collectAsState()
+
+    LaunchedEffect(filter) {
+        filter?.let {
+            if (it == "재고신청") {
+                selectedTabIndex = 1
+            } else {
+                selectedTabIndex = 0
+                viewModel.updateInventoryFilter(it)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -194,7 +217,9 @@ fun InventoryStatusScreen(
     val filteredList = remember(inventoryState.selectedFilter, inventoryState.inventoryList) {
         when (inventoryState.selectedFilter) {
             "정상" -> inventoryState.inventoryList.filter { it.status == ItemStatus.NORMAL }
-            "부족" -> inventoryState.inventoryList.filter { it.status == ItemStatus.LOW_STOCK || it.status == ItemStatus.SOLD_OUT }
+            "부족" -> inventoryState.inventoryList.filter { it.status == ItemStatus.LOW_STOCK}
+//                    || it.status == ItemStatus.SOLD_OUT }
+//            "불량" -> inventoryState.inventoryList.filter { it.status == ItemStatus.DEFECTIVE }
             else -> inventoryState.inventoryList
         }
     }
@@ -241,7 +266,7 @@ fun InventorySummaryDashboard(totalItems: Int, totalQuantity: Int, lackingItems:
             Text("📦 총 품목: ${totalItems}종", fontSize = 16.sp)
             Text("📊 전체 수량: ${totalQuantity}개", fontSize = 16.sp)
             Text("⚠️ 부족 품목: ${lackingItems}개", fontSize = 16.sp)
-            Text("🛠️ 불량 품목: ${defectiveItems}개", fontSize = 16.sp)
+//            Text("🛠️ 불량 품목: ${defectiveItems}개", fontSize = 16.sp)
         }
     }
 }
@@ -348,8 +373,8 @@ fun StatusBadge(status: ItemStatus) {
     val (text, color) = when (status) {
         ItemStatus.NORMAL, ItemStatus.COMPLETED -> "정상" to Color(0xFF28A745)
         ItemStatus.LOW_STOCK -> "부족" to Color(0xFFFFC107)
-        ItemStatus.SOLD_OUT -> "소진" to Color(0xFFDC3545)
-        ItemStatus.DEFECTIVE -> "불량" to Color(0xFF6C757D)
+//        ItemStatus.SOLD_OUT -> "소진" to Color(0xFFDC3545)
+//        ItemStatus.DEFECTIVE -> "불량" to Color(0xFF6C757D)
         else -> status.displayName to Color.Gray
     }
 
@@ -370,6 +395,6 @@ fun StatusBadge(status: ItemStatus) {
 @Composable
 fun InventoryScreenPreview() {
     AndTheme {
-        InventoryScreen(navController = rememberNavController())
+        InventoryScreen(navController = rememberNavController(), filter = null)
     }
 }

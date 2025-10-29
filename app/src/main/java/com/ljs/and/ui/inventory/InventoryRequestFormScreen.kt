@@ -65,7 +65,10 @@ fun InventoryRequestFormScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(
+                    top = innerPadding.calculateTopPadding() - 15.dp,
+                    bottom = innerPadding.calculateBottomPadding()
+                )
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {

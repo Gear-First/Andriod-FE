@@ -21,9 +21,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.ljs.and.ui.Screen
 //import com.ljs.and.data.InventoryRequest
 //import com.ljs.and.data.RequestStatus
-import com.ljs.and.ui.Screen
 import com.ljs.and.ui.theme.AndTheme
 
 @Composable
@@ -41,7 +41,7 @@ fun InventoryRequestScreen(
             !request.isCanceled && when (requestState.selectedFilter) {
                 "대기" -> request.status == RequestStatus.PENDING
                 "승인" -> request.status == RequestStatus.APPROVED
-                "완료" -> request.status == RequestStatus.COMPLETED
+//                "완료" -> request.status == RequestStatus.COMPLETED
                 else -> true // "전체"
             }
         }
@@ -136,7 +136,7 @@ fun CancelRequestDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
 @Composable
 internal fun RequestFilterDropdown(selectedOption: String, onOptionSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val options = listOf("전체", "대기", "승인", "완료")
+    val options = listOf("전체", "대기", "승인")
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -233,7 +233,7 @@ fun StatusButton(status: RequestStatus, modifier: Modifier = Modifier) {
     val (text, color) = when (status) {
         RequestStatus.PENDING -> "대기" to Color.Red
         RequestStatus.APPROVED -> "승인" to Color(0xFF007BFF)
-        RequestStatus.COMPLETED -> "완료" to Color.Gray
+//        RequestStatus.COMPLETED -> "완료" to Color.Gray
     }
 
     OutlinedButton(

@@ -1,5 +1,6 @@
 package com.ljs.and.ui.receiving
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -28,19 +30,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.ljs.and.data.model.ReceivingNote
 import com.ljs.and.ui.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReceivingScreen(
     navController: NavController,
-    viewModel: ReceivingViewModel = viewModel()
+    viewModel: ReceivingViewModel = viewModel(factory = ReceivingViewModelFactory())
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -49,14 +55,39 @@ fun ReceivingScreen(
     var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
-    val (pendingItems, completedItems) = uiState.receivingList.partition { it.status == "대기" }
-    
-    LaunchedEffect(key1 = navController.currentBackStackEntry) {
-        navController.currentBackStackEntry?.savedStateHandle?.get<Int>("selectedTab")?.let {
-            selectedTabIndex = it
-            navController.currentBackStackEntry?.savedStateHandle?.remove<Int>("selectedTab")
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                Log.d("ReceivingScreen", "ON_RESUME: Checking for signals.")
+                navController.currentBackStackEntry?.savedStateHandle?.let { handle ->
+                    handle.get<Int>("selectedTab")?.let {
+                        Log.d("ReceivingScreen", "Selected tab signal received: $it")
+                        selectedTabIndex = it
+                        handle.remove<Int>("selectedTab")
+                    }
+                    handle.get<Boolean>("refreshLists")?.let {
+                        Log.d("ReceivingScreen", "Refresh signal received: $it")
+                        if (it) {
+                            viewModel.refreshAllLists()
+                        }
+                        handle.remove<Boolean>("refreshLists")
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
+
+    // 화면이 처음 생성될 때 모든 목록을 새로고침합니다.
+    LaunchedEffect(Unit) {
+        viewModel.refreshAllLists()
+    }
+
+    // 탭 변경 시 목록을 새로고침하던 불필요한 LaunchedEffect를 제거했습니다.
 
     Scaffold(
         topBar = {
@@ -82,27 +113,28 @@ fun ReceivingScreen(
                 tabs = tabs,
                 onTabSelected = { selectedTabIndex = it }
             )
-            if (uiState.isLoading && uiState.receivingList.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                when (selectedTabIndex) {
-                    0 -> PendingScreen(
-                        pendingList = pendingItems,
-                        onItemClick = { item ->
-                            viewModel.selectReceivingItem(item)
-                            navController.navigate(Screen.ReceivingInspection.createRoute(item.supplier, item.expectedDate))
-                        }
-                    )
-                    1 -> ReceivingCompletedScreen(
-                        completedList = completedItems,
-                        onItemClick = { item ->
-                            viewModel.selectReceivingItem(item)
-                            navController.navigate(Screen.ReceivingInspection.createRoute(item.supplier, item.expectedDate))
-                        }
-                    )
-                }
+            
+            when (selectedTabIndex) {
+                0 -> PendingScreen(
+                    pendingList = uiState.notDoneReceivingList,
+                    onItemClick = { item ->
+                        viewModel.loadReceivingNoteDetail(item.noteId)
+                        navController.navigate(Screen.ReceivingInspection.route)
+                    },
+                    onLoadMore = { viewModel.loadNotDoneReceivingNotes() },
+                    isLoading = uiState.isLoading,
+                    canLoadMore = uiState.canLoadMoreNotDone
+                )
+                1 -> ReceivingCompletedScreen(
+                    completedList = uiState.doneReceivingList,
+                    onItemClick = { item ->
+                        viewModel.loadReceivingNoteDetail(item.noteId)
+                        navController.navigate(Screen.ReceivingInspection.route)
+                    },
+                    onLoadMore = { viewModel.loadDoneReceivingNotes() },
+                    isLoading = uiState.isLoading,
+                    canLoadMore = uiState.canLoadMoreDone
+                )
             }
         }
     }
@@ -153,17 +185,8 @@ fun ReceivingTopAppBar(
             }
         },
         actions = {
-            if (isSearchVisible) {
-                 IconButton(onClick = {
-                     onPerformSearch()
-                     focusManager.clearFocus()
-                 }) {
-                    Icon(Icons.Filled.Search, contentDescription = "Search")
-                }
-            } else {
-                IconButton(onClick = { onSearchVisibilityChange(true) }) {
-                    Icon(Icons.Filled.Search, contentDescription = "Search")
-                }
+            IconButton(onClick = { onSearchVisibilityChange(!isSearchVisible) }) {
+                Icon(Icons.Filled.Search, contentDescription = "Search")
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -204,22 +227,60 @@ fun ReceivingTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (I
 }
 
 @Composable
-fun PendingScreen(pendingList: List<ReceivingItem>, onItemClick: (ReceivingItem) -> Unit) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
-    ) {
-        items(pendingList) { item ->
-            PendingCard(item = item, onStartInspection = { onItemClick(item) })
+fun PendingScreen(
+    pendingList: List<ReceivingNote>,
+    onItemClick: (ReceivingNote) -> Unit,
+    onLoadMore: () -> Unit,
+    isLoading: Boolean,
+    canLoadMore: Boolean
+) {
+    val listState = rememberLazyListState()
+    
+    val reachedBottom by remember {
+        derivedStateOf {
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            lastVisibleItem != null && lastVisibleItem.index == listState.layoutInfo.totalItemsCount - 1 && canLoadMore
+        }
+    }
+
+    LaunchedEffect(reachedBottom) {
+        if (reachedBottom && !isLoading) {
+            onLoadMore()
+        }
+    }
+
+    if (pendingList.isEmpty() && !isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("입고 대기 항목이 없습니다.")
+        }
+    } else {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
+        ) {
+            items(pendingList, key = { it.noteId }) { item ->
+                PendingCard(item = item, onStartInspection = { onItemClick(item) })
+            }
+            if (isLoading) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-fun PendingCard(item: ReceivingItem, onStartInspection: () -> Unit) {
+fun PendingCard(item: ReceivingNote, onStartInspection: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -234,7 +295,7 @@ fun PendingCard(item: ReceivingItem, onStartInspection: () -> Unit) {
         ) {
             Box(Modifier.fillMaxWidth()) {
                 Text(
-                    text = "공급 업체: ${item.supplier}",
+                    text = "공급 업체: ${item.supplierName}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     modifier = Modifier.align(Alignment.CenterStart)
@@ -250,10 +311,11 @@ fun PendingCard(item: ReceivingItem, onStartInspection: () -> Unit) {
                     fontSize = 12.sp
                 )
             }
-            Text("입고번호: ${item.id}", fontSize = 14.sp, color = Color.Gray)
-            Text("입고 예정일: ${item.expectedDate}", fontSize = 14.sp, color = Color.Gray)
-            Text("품목 수량: ${item.totalQuantity}개", fontSize = 14.sp, color = Color.Gray)
-            
+            Text("입고번호: ${item.noteId}", fontSize = 14.sp, color = Color.Gray)
+            Text("입고 예정일: ${item.completedAt ?: ""}", fontSize = 14.sp, color = Color.Gray) // 이 필드는 API에 따라 변경될 수 있습니다.
+            Text("품목 종류: ${item.itemKindsNumber}종", fontSize = 14.sp, color = Color.Gray)
+            Text("총 수량: ${item.totalQty}개", fontSize = 14.sp, color = Color.Gray)
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Box(

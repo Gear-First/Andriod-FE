@@ -1,147 +1,194 @@
 package com.ljs.and.ui.receiving
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.ljs.and.R
+import com.google.gson.Gson
+import com.ljs.and.data.model.ReceivingNote
+import com.ljs.and.data.model.ReceivingNoteDetail
+import com.ljs.and.data.model.UpdateInspectionRequest
+import com.ljs.and.data.remote.RetrofitClient
+import com.ljs.and.data.repository.ReceivingRepository
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
-data class ReceivingItem(
-    val id: String,
-    val supplier: String,
-    val expectedDate: String,
-    val completionDate: String?,
-    val totalQuantity: Int,
-    val manager: String,
-    var status: String
-)
-
-data class InspectionItem(
-    val id: String,
-    val receivingId: String,
-    val partName: String,
-    val partCode: String,
-    val quantity: Int,
-    val location: String,
-    val imageUrl: Int? = null,
-    var isInspected: Boolean = false
-)
 
 data class ReceivingUiState(
-    val receivingList: List<ReceivingItem> = emptyList(),
-    val inspectionList: List<InspectionItem> = emptyList(),
-    val selectedReceivingItem: ReceivingItem? = null,
+    val notDoneReceivingList: List<ReceivingNote> = emptyList(),
+    val doneReceivingList: List<ReceivingNote> = emptyList(),
+    val selectedReceivingNoteDetail: ReceivingNoteDetail? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val currentInspectionItemId: String? = null // 현재 검수중인 아이템 ID
+    val notDonePage: Int = 0,
+    val donePage: Int = 0,
+    val canLoadMoreNotDone: Boolean = true,
+    val canLoadMoreDone: Boolean = true
 )
 
-class ReceivingViewModel : ViewModel() {
+class ReceivingViewModel(private val repository: ReceivingRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReceivingUiState())
     val uiState: StateFlow<ReceivingUiState> = _uiState.asStateFlow()
 
-    init {
-        loadReceivingList()
-    }
+    private val TAG = "ReceivingViewModel"
 
-    private fun loadReceivingList() {
+    fun refreshAllLists(date: String? = null, warehouseId: Long? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val dummyList = getDummyReceivingItems()
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    receivingList = dummyList
-                )
-            }
-        }
-    }
+            Log.d(TAG, "Refreshing all lists...")
 
-    fun selectReceivingItem(item: ReceivingItem) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, selectedReceivingItem = item) }
-            val inspectionItems = getDummyInspectionItems(item.id)
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    inspectionList = inspectionItems
-                )
-            }
-        }
-    }
+            try {
+                // 두 API를 동시에 호출
+                val notDoneDeferred = async { repository.getNotDoneReceivingNotes(date, warehouseId, 0, 20) }
+                val doneDeferred = async { repository.getDoneReceivingNotes(date, warehouseId, 0, 20) }
 
-    fun setCurrentInspectionItem(itemId: String) {
-        _uiState.update { it.copy(currentInspectionItemId = itemId) }
-    }
+                val notDoneResponse = notDoneDeferred.await()
+                val doneResponse = doneDeferred.await()
 
-    fun completeCurrentInspection() {
-        _uiState.value.currentInspectionItemId?.let { itemId ->
-            completeInspection(itemId)
-            _uiState.update { it.copy(currentInspectionItemId = null) } // 처리 후 ID 초기화
-        }
-    }
+                val notDoneItems = if (notDoneResponse.success) notDoneResponse.data?.items ?: emptyList() else emptyList()
+                val doneItems = if (doneResponse.success) doneResponse.data?.items ?: emptyList() else emptyList()
 
-    fun completeInspection(itemId: String) {
-        _uiState.update { currentState ->
-            val updatedList = currentState.inspectionList.map {
-                if (it.id == itemId) it.copy(isInspected = true) else it
-            }
-            currentState.copy(inspectionList = updatedList)
-        }
-    }
+                Log.d(TAG, "Refreshed not-done: ${notDoneItems.size}, done: ${doneItems.size}")
 
-    fun completeAllInspections() {
-        val receivingIdToUpdate = _uiState.value.selectedReceivingItem?.id ?: return
-        val sdf = SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.getDefault())
-        val completionDate = sdf.format(Date())
-
-        _uiState.update { currentState ->
-            val updatedReceivingList = currentState.receivingList.map {
-                if (it.id == receivingIdToUpdate) {
-                    it.copy(status = "완료", completionDate = completionDate)
-                } else {
-                    it
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        notDoneReceivingList = notDoneItems,
+                        doneReceivingList = doneItems,
+                        notDonePage = 1,
+                        donePage = 1,
+                        canLoadMoreNotDone = notDoneItems.isNotEmpty() && notDoneItems.size == 20,
+                        canLoadMoreDone = doneItems.isNotEmpty() && doneItems.size == 20,
+                        errorMessage = if (!notDoneResponse.success) notDoneResponse.message else if (!doneResponse.success) doneResponse.message else null
+                    )
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error refreshing lists", e)
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
             }
-            currentState.copy(receivingList = updatedReceivingList, inspectionList = emptyList(), selectedReceivingItem = null)
+        }
+    }
+    
+    fun loadNotDoneReceivingNotes(date: String? = null, warehouseId: Long? = null) {
+        if (uiState.value.isLoading || !uiState.value.canLoadMoreNotDone) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val pageToLoad = uiState.value.notDonePage
+            Log.d(TAG, "Requesting not-done notes: page=$pageToLoad, date=$date, warehouseId=$warehouseId")
+
+            try {
+                val response = repository.getNotDoneReceivingNotes(date, warehouseId, pageToLoad, 20)
+                if (response.success) {
+                    val newItems = response.data?.items ?: emptyList()
+                    Log.d(TAG, "Successfully loaded ${newItems.size} not-done items.")
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            isLoading = false,
+                            notDoneReceivingList = currentState.notDoneReceivingList + newItems,
+                            notDonePage = pageToLoad + 1,
+                            canLoadMoreNotDone = newItems.isNotEmpty() && newItems.size == 20
+                        )
+                    }
+                } else {
+                    Log.e(TAG, "Failed to load not-done notes: ${response.message}")
+                    _uiState.update { it.copy(isLoading = false, errorMessage = response.message) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading not-done notes", e)
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
+            }
         }
     }
 
-    private fun getDummyReceivingItems(): List<ReceivingItem> {
-        val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
-        val currentDate = sdf.format(Date())
-        return listOf(
-            ReceivingItem(id = "R-001", supplier = "거래처 A", expectedDate = currentDate, completionDate = null, totalQuantity = 120, manager = "김담당", status = "대기"),
-            ReceivingItem(id = "R-002", supplier = "거래처 B", expectedDate = currentDate, completionDate = null, totalQuantity = 85, manager = "박담당", status = "대기"),
-            ReceivingItem(id = "R-003", supplier = "거래처 C", expectedDate = "2024.09.20", completionDate = "2024.09.20 14:30", totalQuantity = 200, manager = "최담당", status = "완료"),
-            ReceivingItem(id = "R-004", supplier = "거래처 A", expectedDate = "2024.09.21", completionDate = null, totalQuantity = 150, manager = "김담당", status = "대기")
-        ).sortedByDescending { it.expectedDate }
+    fun loadDoneReceivingNotes(date: String? = null, warehouseId: Long? = null) {
+        if (uiState.value.isLoading || !uiState.value.canLoadMoreDone) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val pageToLoad = uiState.value.donePage
+            Log.d(TAG, "Requesting done notes: page=$pageToLoad, date=$date, warehouseId=$warehouseId")
+
+            try {
+                val response = repository.getDoneReceivingNotes(date, warehouseId, pageToLoad, 20)
+                if (response.success) {
+                    val newItems = response.data?.items ?: emptyList()
+                    Log.d(TAG, "Successfully loaded ${newItems.size} done items.")
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            isLoading = false,
+                            doneReceivingList = currentState.doneReceivingList + newItems,
+                            donePage = pageToLoad + 1,
+                            canLoadMoreDone = newItems.isNotEmpty() && newItems.size == 20
+                        )
+                    }
+                } else {
+                    Log.e(TAG, "Failed to load done notes: ${response.message}")
+                    _uiState.update { it.copy(isLoading = false, errorMessage = response.message) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading done notes", e)
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
+            }
+        }
     }
 
-    private fun getDummyInspectionItems(receivingId: String): List<InspectionItem> {
-        return when (receivingId) {
-            "R-001" -> listOf(
-                InspectionItem("P-01", receivingId, "엔진 오일 필터", "EOF-001", 50, "A-01-1", R.drawable.ic_launcher_background),
-                InspectionItem("P-02", receivingId, "브레이크 패드", "BP-002", 70, "A-01-2", R.drawable.ic_launcher_background)
-            )
-            "R-002" -> listOf(
-                InspectionItem("P-03", receivingId, "에어컨 필터", "ACF-003", 85, "B-02-1", R.drawable.ic_launcher_background)
-            )
-            "R-003" -> listOf(
-                InspectionItem("P-05", receivingId, "와이퍼 블레이드", "WB-005", 200, "D-04-1", R.drawable.ic_launcher_background, isInspected = true)
-            )
-            "R-004" -> listOf(
-                InspectionItem("P-01", receivingId, "엔진 오일 필터", "EOF-001", 60, "A-01-1", R.drawable.ic_launcher_background),
-                InspectionItem("P-04", receivingId, "타이밍 벨트", "TB-004", 90, "C-03-3", R.drawable.ic_launcher_background)
-            )
-            else -> emptyList()
+    fun loadReceivingNoteDetail(noteId: Long) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            Log.d(TAG, "Requesting detail for noteId: $noteId")
+            try {
+                val response = repository.getReceivingNoteDetail(noteId)
+                if (response.success) {
+                    Log.d(TAG, "Successfully loaded detail for noteId: $noteId")
+                    _uiState.update { it.copy(isLoading = false, selectedReceivingNoteDetail = response.data) }
+                } else {
+                    Log.e(TAG, "Failed to load detail for noteId $noteId: ${response.message}")
+                    _uiState.update { it.copy(isLoading = false, errorMessage = response.message) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading detail for noteId $noteId", e)
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
+            }
         }
+    }
+
+    fun updateInspectionResult(lineId: Long, inspectedQty: Int, hasIssue: Boolean) {
+        val noteId = uiState.value.selectedReceivingNoteDetail?.noteId ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            Log.d(TAG, "Updating inspection for noteId: $noteId, lineId: $lineId, qty: $inspectedQty, issue: $hasIssue")
+            try {
+                val request = UpdateInspectionRequest(inspectedQty, hasIssue)
+                val response = repository.updateReceivingLine(noteId, lineId, request)
+                if (response.success) {
+                    Log.d(TAG, "Successfully updated inspection for lineId: $lineId")
+                    Log.d(TAG, "Response data: ${Gson().toJson(response.data)}")
+                    _uiState.update { it.copy(isLoading = false, selectedReceivingNoteDetail = response.data) }
+                } else {
+                    Log.e(TAG, "Failed to update inspection for lineId $lineId: ${response.message}")
+                    _uiState.update { it.copy(isLoading = false, errorMessage = response.message) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating inspection for lineId $lineId", e)
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
+            }
+        }
+    }
+}
+
+class ReceivingViewModelFactory : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ReceivingViewModel::class.java)) {
+            val repository = ReceivingRepository(RetrofitClient.receivingApiService)
+            @Suppress("UNCHECKED_CAST")
+            return ReceivingViewModel(repository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

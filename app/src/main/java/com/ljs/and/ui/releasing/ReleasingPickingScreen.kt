@@ -40,43 +40,57 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.ljs.and.data.model.ShippingLine
+import com.ljs.and.data.model.ShippingNoteDetail
 import com.ljs.and.ui.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReleasingPickingScreen(
     navController: NavController,
-    viewModel: ReleasingViewModel = viewModel()
+    noteId: Long,
+    viewModel: ReleasingViewModel = viewModel(factory = ReleasingViewModelFactory())
 ) {
+    LaunchedEffect(noteId) {
+        viewModel.loadShippingNoteDetail(noteId)
+    }
+
     val uiState by viewModel.uiState.collectAsState()
-    val selectedItem = uiState.selectedReleasingItem
-    val pickingList = uiState.pickingList
+    val selectedItem = uiState.selectedShippingNoteDetail
+    val pickingList = selectedItem?.lines ?: emptyList()
 
-    val isReadOnly = selectedItem?.status == "완료"
+    val isReadOnly = selectedItem?.status == "COMPLETED"
 
-    val allItemsCompleted = !isReadOnly && pickingList.isNotEmpty() && pickingList.all { it.isPicked }
+    val allItemsCompleted = !isReadOnly && pickingList.isNotEmpty() && pickingList.all { it.pickedQty >= it.allocatedQty }
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, selectedItem) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                val manualInputResult = navController.currentBackStackEntry
-                    ?.savedStateHandle
-                    ?.get<Boolean>("manualInputCompleted")
-                if (manualInputResult == true) {
-                    viewModel.completeCurrentPicking()
-                    navController.currentBackStackEntry?.savedStateHandle?.remove<Boolean>("manualInputCompleted")
+                val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+                val lineId = savedStateHandle?.get<Long>("lineId")
+                val pickedQty = savedStateHandle?.get<Int>("pickedQty")
+
+                if (lineId != null && pickedQty != null && selectedItem != null) {
+                    val lineToUpdate = pickingList.find { it.lineId == lineId }
+                    if (lineToUpdate != null) {
+                        viewModel.updateShippingLine(selectedItem.noteId, lineId, lineToUpdate.allocatedQty, pickedQty)
+                    }
+                    savedStateHandle.remove<Long>("lineId")
+                    savedStateHandle.remove<Int>("pickedQty")
                 }
             }
         }
+
         lifecycleOwner.lifecycle.addObserver(observer)
+
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-
 
     Scaffold(
         topBar = {
@@ -98,13 +112,13 @@ fun ReleasingPickingScreen(
         bottomBar = {
             PickingBottomBar(
                 isReadOnly = isReadOnly,
-                onConfirm = { 
+                onConfirm = {
                     navController.previousBackStackEntry?.savedStateHandle?.set("selectedTab", 1)
-                    navController.popBackStack() 
+                    navController.popBackStack()
                 },
                 onCancel = { navController.popBackStack() },
                 onComplete = {
-                    viewModel.completeAllPicking()
+                    navController.previousBackStackEntry?.savedStateHandle?.set("selectedTab", 1)
                     navController.popBackStack()
                 },
                 isCompleteEnabled = allItemsCompleted
@@ -112,21 +126,25 @@ fun ReleasingPickingScreen(
         },
         containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
-        if (uiState.isLoading) {
+        if (uiState.isLoading && selectedItem == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else if (selectedItem != null) {
             Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
-                PickingHeader(customer = selectedItem.customer, date = selectedItem.expectedDate)
+                PickingHeader(customer = selectedItem.branchName ?: "", date = selectedItem.completedAt ?: "")
                 PickingList(
                     items = pickingList,
-                    selectedReleasingItem = selectedItem,
+                    selectedShippingNoteDetail = selectedItem,
                     isReadOnly = isReadOnly,
-                    onItemClick = { itemId ->
-                        viewModel.setCurrentPickingItem(itemId)
-                        navController.navigate(Screen.BarcodeScan.createRoute("releasing"))
-                    }
+                    onItemClick = { line ->
+                        navController.navigate(Screen.ManualInput.createRoute(
+                            flowType = "releasing",
+                            lineId = line.lineId,
+                            currentQty = line.pickedQty
+                        ))
+                    },
+                    viewModel = viewModel
                 )
             }
         }
@@ -210,33 +228,58 @@ fun PickingHeader(customer: String, date: String) {
 
 @Composable
 fun PickingList(
-    items: List<PickingItem>,
-    selectedReleasingItem: ReleasingItem,
+    items: List<ShippingLine>,
+    selectedShippingNoteDetail: ShippingNoteDetail,
     isReadOnly: Boolean,
-    onItemClick: (String) -> Unit
+    onItemClick: (ShippingLine) -> Unit,
+    viewModel: ReleasingViewModel
 ) {
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        items(items) { item ->
+        items(items, key = { it.lineId }) { item ->
             PickingItemCard(
                 item = item,
-                releasingItem = selectedReleasingItem,
+                shippingNoteDetail = selectedShippingNoteDetail,
                 isReadOnly = isReadOnly,
-                onClick = { onItemClick(item.id) }
+                onClick = { onItemClick(item) },
+                viewModel = viewModel
             )
         }
     }
 }
 
 @Composable
-fun PickingItemCard(item: PickingItem, releasingItem: ReleasingItem, isReadOnly: Boolean, onClick: () -> Unit) {
+fun PickingItemCard(
+    item: ShippingLine,
+    shippingNoteDetail: ShippingNoteDetail,
+    isReadOnly: Boolean,
+    onClick: () -> Unit,
+    viewModel: ReleasingViewModel
+) {
+    val isPicked = item.pickedQty >= item.allocatedQty
+    val isShortage = item.status == "SHORTAGE"
+
+    val buttonText = when {
+        isPicked -> "피킹완료"
+        isShortage -> "부족"
+        else -> "피킹 전"
+    }
+
+    val buttonColor = when {
+        isPicked -> Color(0xFF007BFF)
+        isShortage -> Color.Red
+        else -> Color.Red
+    }
+
+    val isButtonClickable = !isReadOnly && !isPicked
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(
-                enabled = !isReadOnly && !item.isPicked,
+                enabled = isButtonClickable,
                 onClick = onClick
             ),
         shape = RoundedCornerShape(12.dp),
@@ -254,12 +297,11 @@ fun PickingItemCard(item: PickingItem, releasingItem: ReleasingItem, isReadOnly:
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(releasingItem.customer, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("${item.partName} / ${item.partCode}", fontSize = 14.sp)
-                Text("출고번호: ${item.releasingId}", fontSize = 12.sp, color = Color.Gray)
-                Text("출고수량: ${item.quantity}", fontSize = 12.sp, color = Color.Gray)
-                Text("위치: ${item.location}", fontSize = 12.sp, color = Color.Gray)
-                Text("담당자: ${releasingItem.manager}", fontSize = 12.sp, color = Color.Gray)
+                Text(shippingNoteDetail.branchName ?: "", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("${item.product.name ?: ""} / ${item.product.lot ?: ""}", fontSize = 14.sp)
+                Text("출고번호: ${shippingNoteDetail.noteId}", fontSize = 12.sp, color = Color.Gray)
+                Text("할당수량: ${item.allocatedQty}", fontSize = 12.sp, color = Color.Gray)
+                Text("피킹수량: ${item.pickedQty}", fontSize = 12.sp, color = Color.Gray)
             }
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -268,23 +310,31 @@ fun PickingItemCard(item: PickingItem, releasingItem: ReleasingItem, isReadOnly:
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                item.imageUrl?.let {
-                    Image(
-                        painter = painterResource(id = it),
-                        contentDescription = "Product Image",
-                        modifier = Modifier.size(80.dp)
-                    )
-                }
-                val isPicked = item.isPicked
+                AsyncImage(
+                    model = item.product.imgUrl ?: "",
+                    contentDescription = "Product Image",
+                    modifier = Modifier.size(80.dp)
+                )
+
                 OutlinedButton(
-                    onClick = { /* 아무것도 안함 */ },
+                    onClick = {
+                        if (isButtonClickable) {
+                            viewModel.updateShippingLine(
+                                shippingNoteDetail.noteId,
+                                item.lineId,
+                                item.allocatedQty,
+                                item.allocatedQty
+                            )
+                        }
+                    },
                     shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, if (isPicked) Color(0xFF007BFF) else Color.Red),
-                    enabled = !isReadOnly && !isPicked
+                    border = BorderStroke(1.dp, buttonColor),
+                    enabled = isButtonClickable,
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
                 ) {
                     Text(
-                        text = if (isPicked) "피킹완료" else "피킹 중",
-                        color = if (isPicked) Color(0xFF007BFF) else Color.Red,
+                        text = buttonText ?: "",
+                        color = buttonColor,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -302,7 +352,6 @@ fun PickingBottomBar(
     isCompleteEnabled: Boolean
 ) {
     Surface(
-//        shadowElevation = 8.dp,
         color = Color(0xFFF5F5F7)
     ) {
         if (isReadOnly) {
@@ -317,36 +366,33 @@ fun PickingBottomBar(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
                 ) {
-                    Text("확인", color = Color.White)
+                    Text("확인", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         } else {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 24.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                    .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 OutlinedButton(
                     onClick = onCancel,
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color.LightGray)
+                    border = BorderStroke(1.dp, Color.LightGray),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
                 ) {
                     Text("취소", color = Color.Black)
                 }
-                Spacer(modifier = Modifier.width(16.dp))
                 Button(
                     onClick = onComplete,
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF007BFF),
-                        disabledContainerColor = Color.LightGray
-                    ),
-                    enabled = isCompleteEnabled
+                    enabled = isCompleteEnabled,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
                 ) {
-                    Text("피킹 완료", color = Color.White)
+                    Text("피킹 완료", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }

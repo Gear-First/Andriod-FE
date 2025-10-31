@@ -34,13 +34,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.ljs.and.data.model.ShippingNote
 import com.ljs.and.ui.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReleasingScreen(
     navController: NavController,
-    viewModel: ReleasingViewModel = viewModel()
+    viewModel: ReleasingViewModel = viewModel(factory = ReleasingViewModelFactory())
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -49,7 +50,10 @@ fun ReleasingScreen(
     var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
-    val (pendingItems, completedItems) = uiState.releasingList.partition { it.status == "대기" }
+    LaunchedEffect(key1 = Unit) {
+        viewModel.loadNotDoneShippingNotes()
+        viewModel.loadDoneShippingNotes()
+    }
 
     LaunchedEffect(key1 = navController.currentBackStackEntry) {
         navController.currentBackStackEntry?.savedStateHandle?.get<Int>("selectedTab")?.let {
@@ -82,24 +86,22 @@ fun ReleasingScreen(
                 tabs = tabs,
                 onTabSelected = { selectedTabIndex = it }
             )
-            if (uiState.isLoading && uiState.releasingList.isEmpty()) {
+            if (uiState.isLoading && (uiState.notDoneShippingNotes == null || uiState.doneShippingNotes == null)) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
                 when (selectedTabIndex) {
                     0 -> PendingScreen(
-                        pendingList = pendingItems,
+                        pendingList = uiState.notDoneShippingNotes?.items ?: emptyList(),
                         onItemClick = { item ->
-                            viewModel.selectReleasingItem(item)
-                            navController.navigate(Screen.ReleasingPicking.createRoute(item.customer, item.expectedDate))
+                            navController.navigate(Screen.ReleasingPicking.createRoute(item.noteId))
                         }
                     )
                     1 -> ReleasingCompletedScreen(
-                        completedList = completedItems,
+                        completedList = uiState.doneShippingNotes?.items ?: emptyList(),
                         onItemClick = { item ->
-                            viewModel.selectReleasingItem(item)
-                            navController.navigate(Screen.ReleasingPicking.createRoute(item.customer, item.expectedDate))
+                            navController.navigate(Screen.ReleasingPicking.createRoute(item.noteId))
                         }
                     )
                 }
@@ -201,22 +203,37 @@ fun ReleasingTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (I
 }
 
 @Composable
-fun PendingScreen(pendingList: List<ReleasingItem>, onItemClick: (ReleasingItem) -> Unit) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
-    ) {
-        items(pendingList) { item ->
-            PendingCard(item = item, onStartPicking = { onItemClick(item) })
+fun PendingScreen(pendingList: List<ShippingNote>, onItemClick: (ShippingNote) -> Unit) {
+    if (pendingList.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("출고 대기 항목이 없습니다.")
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
+        ) {
+            items(pendingList) { item ->
+                PendingCard(item = item, onStartPicking = { onItemClick(item) })
+            }
         }
     }
 }
 
 @Composable
-fun PendingCard(item: ReleasingItem, onStartPicking: () -> Unit) {
+fun PendingCard(item: ShippingNote, onStartPicking: () -> Unit) {
+    val statusColor = when (item.status) {
+        "PENDING" -> Color.Red
+        "IN_PROGRESS" -> Color.Red
+        else -> Color.Gray
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -228,7 +245,7 @@ fun PendingCard(item: ReleasingItem, onStartPicking: () -> Unit) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(Modifier.fillMaxWidth()) {
                 Text(
-                    text = "거래처: ${item.customer}", 
+                    text = "거래처: ${item.branchName}", 
                     fontWeight = FontWeight.Bold, 
                     fontSize = 16.sp,
                     modifier = Modifier.align(Alignment.CenterStart)
@@ -237,16 +254,16 @@ fun PendingCard(item: ReleasingItem, onStartPicking: () -> Unit) {
                     text = item.status,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .background(Color.Red, RoundedCornerShape(4.dp))
+                        .background(statusColor, RoundedCornerShape(4.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
             }
-            Text("출고번호: ${item.id}", fontSize = 14.sp, color = Color.Gray)
-            Text("출고 예정일: ${item.expectedDate}", fontSize = 14.sp, color = Color.Gray)
-            Text("품목 수량: ${item.totalQuantity}개", fontSize = 14.sp, color = Color.Gray)
+            Text("출고번호: ${item.noteId}", fontSize = 14.sp, color = Color.Gray)
+            Text("품목 종류: ${item.itemKindsNumber}종", fontSize = 14.sp, color = Color.Gray)
+            Text("총 수량: ${item.totalQty}개", fontSize = 14.sp, color = Color.Gray)
             
             Spacer(modifier = Modifier.height(8.dp))
 

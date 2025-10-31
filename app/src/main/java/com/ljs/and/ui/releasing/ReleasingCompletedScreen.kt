@@ -1,13 +1,11 @@
 package com.ljs.and.ui.releasing
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,24 +29,40 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ljs.and.data.model.ShippingNote
 
 @Composable
-fun ReleasingCompletedScreen(completedList: List<ReleasingItem>, onItemClick: (ReleasingItem) -> Unit) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
-    ) {
-        items(completedList) { item ->
-            CompletedCard(item = item, onClick = { onItemClick(item) })
+fun ReleasingCompletedScreen(completedList: List<ShippingNote>, onItemClick: (ShippingNote) -> Unit) {
+    if (completedList.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("출고 완료된 항목이 없습니다.")
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
+        ) {
+            items(completedList) { item ->
+                CompletedCard(item = item, onClick = { onItemClick(item) })
+            }
         }
     }
 }
 
 @Composable
-fun CompletedCard(item: ReleasingItem, onClick: () -> Unit) {
+fun CompletedCard(item: ShippingNote, onClick: () -> Unit) {
+    val statusColor = when (item.status) {
+        "COMPLETED" -> Color(0xFF007BFF)
+        "DELAYED" -> Color(0xFF007BFF)
+        else -> Color.Gray
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -63,26 +77,26 @@ fun CompletedCard(item: ReleasingItem, onClick: () -> Unit) {
         ) {
             Box(Modifier.fillMaxWidth()) {
                 Text(
-                    text = "거래처: ${item.customer}",
+                    text = "거래처: ${item.branchName ?: ""}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     modifier = Modifier.align(Alignment.CenterStart)
                 )
                 Text(
-                    text = item.status,
+                    text = item.status ?: "",
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .background(Color(0xFF007BFF), RoundedCornerShape(4.dp))
+                        .background(statusColor, RoundedCornerShape(4.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
             }
-            Text("출고번호: ${item.id}", fontSize = 14.sp, color = Color.Gray)
-            Text("출고일시: ${item.completionDate ?: ""}", fontSize = 14.sp, color = Color.Gray)
-            Text("품목 개수: ${item.totalQuantity}개", fontSize = 14.sp, color = Color.Gray)
-            Text("담당자: ${item.manager}", fontSize = 14.sp, color = Color.Gray)
+            Text("출고번호: ${item.noteId}", fontSize = 14.sp, color = Color.Gray)
+            Text("출고일시: ${item.completedAt ?: ""}", fontSize = 14.sp, color = Color.Gray)
+            Text("품목 종류: ${item.itemKindsNumber}종", fontSize = 14.sp, color = Color.Gray)
+            Text("총 수량: ${item.totalQty}개", fontSize = 14.sp, color = Color.Gray)
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -114,7 +128,8 @@ fun CompletedCard(item: ReleasingItem, onClick: () -> Unit) {
 @Composable
 fun ReleasingCompletedScreenPreview() {
     val dummyList = listOf(
-        ReleasingItem("O-003", "거래처 C", "2024.09.20", "2024.09.20 14:30", 200, "최담당", "완료")
+        ShippingNote(noteId = 1, branchName = "거래처 A", itemKindsNumber = 2, totalQty = 80, status = "COMPLETED", completedAt = "2025-10-28T02:05Z"),
+        ShippingNote(noteId = 2, branchName = "거래처 B", itemKindsNumber = 3, totalQty = 110, status = "DELAYED", completedAt = "2025-10-29T03:05Z")
     )
     MaterialTheme {
         ReleasingCompletedScreen(completedList = dummyList, onItemClick = {})

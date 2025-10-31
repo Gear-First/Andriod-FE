@@ -39,37 +39,46 @@ import com.ljs.and.ui.common.ManualInputScreen
 import com.ljs.and.ui.home.HomeScreen
 import com.ljs.and.ui.inventory.InventoryRequestFormScreen
 import com.ljs.and.ui.inventory.InventoryScreen
+import com.ljs.and.ui.login.LoginScreen
+import com.ljs.and.ui.login.SplashScreen
 import com.ljs.and.ui.more.MoreScreen
 import com.ljs.and.ui.receiving.ReceivingInspectionScreen
 import com.ljs.and.ui.receiving.ReceivingScreen
 import com.ljs.and.ui.receiving.ReceivingViewModel
+import com.ljs.and.ui.receiving.ReceivingViewModelFactory
 import com.ljs.and.ui.releasing.ReleasingPickingScreen
 import com.ljs.and.ui.releasing.ReleasingScreen
 import com.ljs.and.ui.releasing.ReleasingViewModel
+import com.ljs.and.ui.releasing.ReleasingViewModelFactory
 import com.ljs.and.ui.search.SearchResultScreen
 
 sealed class Screen(val route: String) {
+    object Splash : Screen("splash")
+    object Login : Screen("login")
     object Home : Screen("home")
     object Receiving : Screen("receiving")
     object ReceivingHome: Screen("receiving_home")
     object Releasing : Screen("releasing")
     object ReleasingHome : Screen("releasing_home")
-    object Inventory : Screen("inventory")
+    object Inventory : Screen("inventory?filter={filter}") {
+        fun createRoute(filter: String? = null): String {
+            return if (filter != null) "inventory?filter=$filter" else "inventory"
+        }
+    }
     object More : Screen("more")
     object InventoryRequestForm : Screen("inventory_request")
-    object BarcodeScan : Screen("barcodescan/{type}") {
-        fun createRoute(type: String) = "barcodescan/$type"
+    object BarcodeScan : Screen("barcodescan/{flowType}?lineId={lineId}&currentQty={currentQty}") {
+        fun createRoute(flowType: String, lineId: Long = -1L, currentQty: Int = 0) = "barcodescan/$flowType?lineId=$lineId&currentQty=$currentQty"
     }
-    object ManualInput : Screen("manual_input/{flowType}") {
-        fun createRoute(flowType: String) = "manual_input/$flowType"
+    object ManualInput : Screen("manual_input/{flowType}?lineId={lineId}&currentQty={currentQty}") {
+        fun createRoute(flowType: String, lineId: Long, currentQty: Int) = "manual_input/$flowType?lineId=$lineId&currentQty=$currentQty"
     }
-    object ReceivingInspection : Screen("receiving_inspection/{supplier}/{date}") {
-        fun createRoute(supplier: String, date: String) = "receiving_inspection/$supplier/$date"
+    object ReceivingInspection : Screen("receiving_inspection")
+    object ReleasingPicking : Screen("releasing_picking/{noteId}") {
+        fun createRoute(noteId: Long) = "releasing_picking/$noteId"
     }
-    object ReleasingPicking : Screen("releasing_picking/{customer}/{date}") {
-        fun createRoute(customer: String, date: String) = "releasing_picking/$customer/$date"
-    }
-    object SearchResult : Screen("search_result/{flowType}") {
+
+    object SearchResult : Screen("search_result/{flowType}?query={query}") {
         fun createRoute(flowType: String, query: String? = null): String {
             var route = "search_result/$flowType"
             if (query != null) {
@@ -96,6 +105,8 @@ fun MainScreen() {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
             val showBottomBar = currentRoute !in listOf(
+                Screen.Splash.route,
+                Screen.Login.route,
                 Screen.BarcodeScan.route,
                 Screen.ManualInput.route,
                 Screen.InventoryRequestForm.route,
@@ -125,16 +136,14 @@ private fun BottomNavigationBar(navController: NavHostController) {
 
         bottomNavItems.forEach { (screen, details) ->
             val (title, icon) = details
-            val isSelected = currentDestination?.hierarchy?.any { it.route?.startsWith(screen.route) ?: false } == true
+            val isSelected = currentDestination?.hierarchy?.any { it.route?.startsWith(screen.route.substringBefore("?")) ?: false } == true
             NavigationBarItem(
                 icon = { Icon(icon, contentDescription = title) },
                 label = { Text(title) },
                 selected = isSelected,
                 onClick = {
                     navController.navigate(screen.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
+                        popUpTo(Screen.Home.route) { inclusive = false } // 핵심 수정
                         launchSingleTop = true
                         restoreState = true
                     }
@@ -153,72 +162,84 @@ private fun BottomNavigationBar(navController: NavHostController) {
 
 @Composable
 private fun NavigationGraph(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = Screen.Home.route) {
+    NavHost(navController = navController, startDestination = Screen.Splash.route) {
+        composable(Screen.Splash.route) { SplashScreen(navController) }
+        composable(Screen.Login.route) { LoginScreen(navController) }
         composable(Screen.Home.route) { HomeScreen(navController = navController) }
 
         navigation(startDestination = Screen.ReceivingHome.route, route = Screen.Receiving.route) {
             composable(Screen.ReceivingHome.route) { backStackEntry ->
                 val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Receiving.route) }
-                val viewModel: ReceivingViewModel = viewModel(parentEntry)
+                val viewModel: ReceivingViewModel = viewModel(parentEntry, factory = ReceivingViewModelFactory())
                 ReceivingScreen(navController = navController, viewModel = viewModel)
             }
-            composable(
-                route = Screen.ReceivingInspection.route,
-                 arguments = listOf(
-                    navArgument("supplier") { type = NavType.StringType },
-                    navArgument("date") { type = NavType.StringType }
-                )
-            ) { backStackEntry ->
+            composable(route = Screen.ReceivingInspection.route) { backStackEntry ->
                 val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Receiving.route) }
-                val viewModel: ReceivingViewModel = viewModel(parentEntry)
+                val viewModel: ReceivingViewModel = viewModel(parentEntry, factory = ReceivingViewModelFactory())
                 ReceivingInspectionScreen(navController = navController, viewModel = viewModel)
             }
         }
 
         navigation(startDestination = Screen.ReleasingHome.route, route = Screen.Releasing.route) {
-            composable(Screen.ReleasingHome.route) { backStackEntry ->
-                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Releasing.route) }
-                val viewModel: ReleasingViewModel = viewModel(parentEntry)
+            composable(Screen.ReleasingHome.route) {
+                val viewModel: ReleasingViewModel = viewModel(factory = ReleasingViewModelFactory())
                 ReleasingScreen(navController = navController, viewModel = viewModel)
             }
             composable(
                 route = Screen.ReleasingPicking.route,
-                arguments = listOf(
-                    navArgument("customer") { type = NavType.StringType },
-                    navArgument("date") { type = NavType.StringType }
-                )
+                arguments = listOf(navArgument("noteId") { type = NavType.LongType })
             ) { backStackEntry ->
-                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Releasing.route) }
-                val viewModel: ReleasingViewModel = viewModel(parentEntry)
-                ReleasingPickingScreen(navController = navController, viewModel = viewModel)
+                val noteId = backStackEntry.arguments?.getLong("noteId") ?: -1L
+                val viewModel: ReleasingViewModel = viewModel(factory = ReleasingViewModelFactory())
+                ReleasingPickingScreen(navController = navController, noteId = noteId, viewModel = viewModel)
             }
         }
 
-        composable(Screen.Inventory.route) { InventoryScreen(navController = navController) }
+        composable(
+            route = Screen.Inventory.route,
+            arguments = listOf(navArgument("filter") { type = NavType.StringType; nullable = true })
+        ) { backStackEntry ->
+            InventoryScreen(
+                navController = navController,
+                filter = backStackEntry.arguments?.getString("filter")
+            )
+        }
         composable(Screen.More.route) { MoreScreen(navController = navController) }
         composable(Screen.InventoryRequestForm.route) { InventoryRequestFormScreen(navController = navController) }
 
         composable(
             route = Screen.BarcodeScan.route,
-            arguments = listOf(navArgument("type") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("flowType") { type = NavType.StringType },
+                navArgument("lineId") { type = NavType.LongType; defaultValue = -1L },
+                navArgument("currentQty") { type = NavType.IntType; defaultValue = 0 }
+            )
         ) { backStackEntry ->
             BarcodeScanScreen(
                 navController = navController,
-                flowType = backStackEntry.arguments?.getString("type") ?: "receiving"
+                flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving",
+                lineId = backStackEntry.arguments?.getLong("lineId") ?: -1L,
+                currentQty = backStackEntry.arguments?.getInt("currentQty") ?: 0
             )
         }
         composable(
             route = Screen.ManualInput.route,
-            arguments = listOf(navArgument("flowType") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("flowType") { type = NavType.StringType },
+                navArgument("lineId") { type = NavType.LongType },
+                navArgument("currentQty") { type = NavType.IntType }
+            )
         ) { backStackEntry ->
             ManualInputScreen(
                 navController = navController,
-                flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving"
+                flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving",
+                lineId = backStackEntry.arguments?.getLong("lineId") ?: -1L,
+                currentQty = backStackEntry.arguments?.getInt("currentQty") ?: 0
             )
         }
 
         composable(
-            route = "${Screen.SearchResult.route}?query={query}",
+            route = Screen.SearchResult.route,
             arguments = listOf(
                 navArgument("flowType") { type = NavType.StringType },
                 navArgument("query") {

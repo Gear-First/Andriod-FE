@@ -24,7 +24,12 @@ import com.ljs.and.ui.Screen
 
 
 @Composable
-fun BarcodeScanScreen(navController: NavController, flowType: String) {
+fun BarcodeScanScreen(
+    navController: NavController, 
+    flowType: String,
+    lineId: Long,
+    currentQty: Int
+) {
     val initialTabIndex = if (flowType == "releasing") 1 else 0
     var selectedTabIndex by remember { mutableStateOf(initialTabIndex) }
     val tabs = listOf("입고", "출고")
@@ -49,19 +54,20 @@ fun BarcodeScanScreen(navController: NavController, flowType: String) {
 
         CameraPreview()
 
-//        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.weight(1f))
 
-        Spacer(modifier = Modifier.height(230.dp))
-
-//        ScanActionButtons(
-//            onCancel = { navController.popBackStack() },
-//            onManualInput = { navController.navigate(Screen.ManualInput.createRoute(if (selectedTabIndex == 0) "receiving" else "releasing")) }
-//        )
         ScanActionButtons(
             onCancel = { navController.popBackStack() },
             onManualInput = {
+                // lineId가 -1L이면 신규 등록으로 간주, 아니면 기존 항목 수정으로 간주
+                val targetLineId = if(lineId == -1L) 0L else lineId
+
                 navController.navigate(
-                    Screen.ManualInput.createRoute(if (selectedTabIndex == 0) "receiving" else "releasing")
+                    Screen.ManualInput.createRoute(
+                        flowType = if (selectedTabIndex == 0) "receiving" else "releasing",
+                        lineId = targetLineId, // -1이 아닌 유효한 ID 전달
+                        currentQty = currentQty
+                    )
                 )
             },
             modifier = Modifier.padding(bottom = 40.dp)
@@ -161,6 +167,6 @@ fun ScanActionButtons(onCancel: () -> Unit, onManualInput: () -> Unit, modifier:
 @Composable
 fun BarcodeScanScreenPreview() {
     MaterialTheme {
-        BarcodeScanScreen(navController = rememberNavController(), flowType = "receiving")
+        BarcodeScanScreen(navController = rememberNavController(), flowType = "receiving", lineId = -1L, currentQty = 0)
     }
 }

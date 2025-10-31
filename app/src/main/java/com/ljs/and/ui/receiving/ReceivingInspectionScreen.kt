@@ -104,15 +104,13 @@ fun ReceivingInspectionScreen(
         bottomBar = {
             InspectionBottomBar(
                 isReadOnly = isReadOnly,
-                onConfirm = {
+                onConfirm = { // "확인" 버튼 (읽기 전용 상태)
                     navController.previousBackStackEntry?.savedStateHandle?.set("selectedTab", 1)
                     navController.popBackStack()
                 },
                 onCancel = { navController.popBackStack() },
-                onComplete = {
-                    // 잘못된 API 호출을 제거하고, 신호만 보내도록 수정
+                onComplete = { // "검수 완료" 버튼
                     navController.previousBackStackEntry?.savedStateHandle?.set("selectedTab", 1)
-                    navController.previousBackStackEntry?.savedStateHandle?.set("refreshLists", true)
                     navController.popBackStack()
                 },
                 isCompleteEnabled = allItemsInspected
@@ -143,7 +141,6 @@ fun ReceivingInspectionScreen(
     }
 }
 
-// ... (Rest of the file is unchanged)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InspectionTopAppBar(
@@ -250,7 +247,7 @@ fun InspectionItemCard(line: ReceivingLine, noteDetail: ReceivingNoteDetail, isR
             .clickable(
                 enabled = !isReadOnly && !isInspected,
                 onClick = onClick
-            ),
+                ),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)

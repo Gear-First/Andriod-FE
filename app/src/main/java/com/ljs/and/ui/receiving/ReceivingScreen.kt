@@ -49,7 +49,11 @@ fun ReceivingScreen(
     viewModel: ReceivingViewModel = viewModel(factory = ReceivingViewModelFactory())
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var selectedTabIndex by remember { mutableStateOf(0) }
+
+    // 1. Get the initial tab index from savedStateHandle
+    val initialTabIndex = navController.currentBackStackEntry?.savedStateHandle?.get<Int>("selectedTab") ?: 0
+    var selectedTabIndex by remember { mutableStateOf(initialTabIndex) }
+
     val tabs = listOf("입고 대기", "입고 완료")
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -61,17 +65,12 @@ fun ReceivingScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 Log.d("ReceivingScreen", "ON_RESUME: Checking for signals.")
                 navController.currentBackStackEntry?.savedStateHandle?.let { handle ->
+                    // 2. Set the tab index and immediately refresh if it's from the handle
                     handle.get<Int>("selectedTab")?.let {
                         Log.d("ReceivingScreen", "Selected tab signal received: $it")
                         selectedTabIndex = it
+                        viewModel.refreshAllLists() // Refresh data for the new tab
                         handle.remove<Int>("selectedTab")
-                    }
-                    handle.get<Boolean>("refreshLists")?.let {
-                        Log.d("ReceivingScreen", "Refresh signal received: $it")
-                        if (it) {
-                            viewModel.refreshAllLists()
-                        }
-                        handle.remove<Boolean>("refreshLists")
                     }
                 }
             }
@@ -82,12 +81,14 @@ fun ReceivingScreen(
         }
     }
 
-    // 화면이 처음 생성될 때 모든 목록을 새로고침합니다.
-    LaunchedEffect(Unit) {
-        viewModel.refreshAllLists()
+    // 3. Load data only when the screen is first created or when a tab is manually selected
+    LaunchedEffect(selectedTabIndex) {
+        if (selectedTabIndex == 0) {
+            viewModel.loadNotDoneReceivingNotes()
+        } else {
+            viewModel.loadDoneReceivingNotes()
+        }
     }
-
-    // 탭 변경 시 목록을 새로고침하던 불필요한 LaunchedEffect를 제거했습니다.
 
     Scaffold(
         topBar = {
@@ -111,7 +112,10 @@ fun ReceivingScreen(
             ReceivingTabRow(
                 selectedTabIndex = selectedTabIndex,
                 tabs = tabs,
-                onTabSelected = { selectedTabIndex = it }
+                onTabSelected = { 
+                    selectedTabIndex = it
+                    // No need to call refresh here, LaunchedEffect will handle it.
+                }
             )
             
             when (selectedTabIndex) {

@@ -124,8 +124,8 @@ fun InventoryRequestFormScreen(
                         reason = selectedReason,
                         requester = requester
                     )
-                    navController.navigate(Screen.Inventory.route + "?tab=1") {
-                        popUpTo(Screen.Inventory.route) { inclusive = true }
+                    navController.navigate(Screen.Inventory.createRoute("재고신청")) {
+                        popUpTo(Screen.Home.route)
                     }
                 },
                 modifier = Modifier

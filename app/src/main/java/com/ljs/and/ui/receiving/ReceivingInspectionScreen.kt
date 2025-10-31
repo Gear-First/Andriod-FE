@@ -48,7 +48,8 @@ import com.ljs.and.ui.Screen
 @Composable
 fun ReceivingInspectionScreen(
     navController: NavController,
-    viewModel: ReceivingViewModel = viewModel(factory = ReceivingViewModelFactory())
+    viewModel: ReceivingViewModel = viewModel(factory = ReceivingViewModelFactory()),
+    isReadOnly: Boolean
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedNoteDetail = uiState.selectedReceivingNoteDetail
@@ -77,7 +78,6 @@ fun ReceivingInspectionScreen(
         }
     }
 
-    val isReadOnly = selectedNoteDetail?.status == "COMPLETED"
     val allItemsInspected = !isReadOnly && selectedNoteDetail?.lines?.isNotEmpty() == true &&
             selectedNoteDetail.lines.all { it.status == "ACCEPTED" || it.status.startsWith("COMPLETED") }
 

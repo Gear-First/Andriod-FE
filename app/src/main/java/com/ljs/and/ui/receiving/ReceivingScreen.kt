@@ -123,7 +123,7 @@ fun ReceivingScreen(
                     pendingList = uiState.notDoneReceivingList,
                     onItemClick = { item ->
                         viewModel.loadReceivingNoteDetail(item.noteId)
-                        navController.navigate(Screen.ReceivingInspection.route)
+                        navController.navigate(Screen.ReceivingInspection.createRoute(isReadOnly = false))
                     },
                     onLoadMore = { viewModel.loadNotDoneReceivingNotes() },
                     isLoading = uiState.isLoading,
@@ -133,7 +133,7 @@ fun ReceivingScreen(
                     completedList = uiState.doneReceivingList,
                     onItemClick = { item ->
                         viewModel.loadReceivingNoteDetail(item.noteId)
-                        navController.navigate(Screen.ReceivingInspection.route)
+                        navController.navigate(Screen.ReceivingInspection.createRoute(isReadOnly = true))
                     },
                     onLoadMore = { viewModel.loadDoneReceivingNotes() },
                     isLoading = uiState.isLoading,

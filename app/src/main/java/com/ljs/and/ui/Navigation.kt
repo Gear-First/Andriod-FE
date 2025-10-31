@@ -73,7 +73,9 @@ sealed class Screen(val route: String) {
     object ManualInput : Screen("manual_input/{flowType}?lineId={lineId}&currentQty={currentQty}") {
         fun createRoute(flowType: String, lineId: Long, currentQty: Int) = "manual_input/$flowType?lineId=$lineId&currentQty=$currentQty"
     }
-    object ReceivingInspection : Screen("receiving_inspection")
+    object ReceivingInspection : Screen("receiving_inspection?isReadOnly={isReadOnly}") {
+        fun createRoute(isReadOnly: Boolean) = "receiving_inspection?isReadOnly=$isReadOnly"
+    }
     object ReleasingPicking : Screen("releasing_picking/{noteId}") {
         fun createRoute(noteId: Long) = "releasing_picking/$noteId"
     }
@@ -173,10 +175,14 @@ private fun NavigationGraph(navController: NavHostController) {
                 val viewModel: ReceivingViewModel = viewModel(parentEntry, factory = ReceivingViewModelFactory())
                 ReceivingScreen(navController = navController, viewModel = viewModel)
             }
-            composable(route = Screen.ReceivingInspection.route) { backStackEntry ->
+            composable(
+                route = Screen.ReceivingInspection.route,
+                arguments = listOf(navArgument("isReadOnly") { type = NavType.BoolType; defaultValue = false })
+            ) { backStackEntry ->
                 val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Receiving.route) }
                 val viewModel: ReceivingViewModel = viewModel(parentEntry, factory = ReceivingViewModelFactory())
-                ReceivingInspectionScreen(navController = navController, viewModel = viewModel)
+                val isReadOnly = backStackEntry.arguments?.getBoolean("isReadOnly") ?: false
+                ReceivingInspectionScreen(navController = navController, viewModel = viewModel, isReadOnly = isReadOnly)
             }
         }
 

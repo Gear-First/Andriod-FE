@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Notifications
@@ -32,10 +31,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,12 +41,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.ljs.and.ui.Screen
 import com.ljs.and.ui.theme.AndTheme
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
@@ -57,17 +54,15 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController) {
-    var showDialogType by remember { mutableStateOf<String?>(null) }
-    var showNotificationDialog by remember { mutableStateOf(false) }
+fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
         topBar = {
-            HomeTopAppBar(onNotificationClick = { showNotificationDialog = true })
+            HomeTopAppBar(onNotificationClick = { viewModel.onEvent(HomeEvent.ShowNotificationDialog) })
         },
         containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
@@ -79,20 +74,53 @@ fun HomeScreen(navController: NavController) {
             verticalArrangement = Arrangement.SpaceAround,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            GreetingSection()
-            StatusCards(navController)
-            ChartSection { dialogType -> showDialogType = dialogType }
+            GreetingSection(
+                selectedDate = uiState.selectedDate,
+                onDateClick = { viewModel.onEvent(HomeEvent.ShowDatePicker) }
+            )
+            StatusCards(navController, uiState.status, uiState.isTodaySelected, uiState.selectedDate)
+            ChartSection { chartType -> viewModel.onEvent(HomeEvent.ShowChart(chartType)) }
             QuickActions(navController)
         }
     }
 
-    when (showDialogType) {
-        "inventory" -> InventoryChartModal { showDialogType = null }
-        "weekly" -> WeeklyInOutChartModal { showDialogType = null }
+    if (uiState.isDatePickerVisible) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { viewModel.onEvent(HomeEvent.HideDatePicker) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let {
+                            viewModel.onEvent(HomeEvent.DateSelected(it))
+                        }
+                    }
+                ) { Text("확인") }
+            },
+            dismissButton = { TextButton(onClick = { viewModel.onEvent(HomeEvent.HideDatePicker) }) { Text("취소") } }
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
 
-    if (showNotificationDialog) {
-        NotificationDialog(onDismiss = { showNotificationDialog = false })
+    uiState.visibleChart?.let {
+        when (it) {
+            ChartType.INVENTORY -> InventoryChartModal(
+                inventoryData = uiState.inventoryItems,
+                onDismiss = { viewModel.onEvent(HomeEvent.HideChart) }
+            )
+            ChartType.WEEKLY -> WeeklyInOutChartModal(
+                weeklyData = uiState.weeklyInOutData,
+                onDismiss = { viewModel.onEvent(HomeEvent.HideChart) }
+            )
+        }
+    }
+
+    if (uiState.isNotificationDialogVisible) {
+        NotificationDialog(
+            notifications = uiState.notifications,
+            onDismiss = { viewModel.onEvent(HomeEvent.HideNotificationDialog) }
+        )
     }
 }
 
@@ -112,12 +140,7 @@ fun HomeTopAppBar(onNotificationClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GreetingSection() {
-    val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
-    var currentDate by remember { mutableStateOf(sdf.format(Date())) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState()
-
+fun GreetingSection(selectedDate: String, onDateClick: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -126,55 +149,42 @@ fun GreetingSection() {
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { showDatePicker = true }
+            modifier = Modifier.clickable(onClick = onDateClick)
         ) {
-            Text(currentDate, fontSize = 16.sp, color = Color.Gray)
-            Icon(Icons.Default.ArrowDropDown, contentDescription = "Select Date")
-        }
-    }
-
-    if (showDatePicker) {
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val selectedDate = datePickerState.selectedDateMillis?.let {
-                            sdf.format(Date(it))
-                        }
-                        if (selectedDate != null) {
-                            currentDate = selectedDate
-                        }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text("확인")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("취소")
-                }
-            }
-        ) {
-            DatePicker(state = datePickerState)
+            Text(selectedDate, fontSize = 16.sp, color = Color.Gray)
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Select Date")
         }
     }
 }
 
 @Composable
-fun StatusCards(navController: NavController) {
+fun StatusCards(navController: NavController, status: StatusData, isTodaySelected: Boolean, selectedDate: String) {
+    val dateText = if (isTodaySelected) {
+        "오늘"
+    } else {
+        try {
+            val parser = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
+            val formatter = SimpleDateFormat("M월 d일", Locale.getDefault())
+            val date = parser.parse(selectedDate)
+            if (date != null) formatter.format(date) else "선택일"
+        } catch (e: Exception) {
+            "선택일" // Fallback
+        }
+    }
+    val inboundText = "$dateText 입고 예정"
+    val outboundText = "$dateText 출고 예정"
+
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             StatusCard(
-                title = "오늘 입고 예정",
-                count = "12건",
+                title = inboundText,
+                count = "${status.inboundCount}건",
                 modifier = Modifier.weight(1f),
                 onClick = { navController.navigate(Screen.ReceivingHome.route) }
             )
             StatusCard(
-                title = "오늘 출고 예정",
-                count = "8건",
+                title = outboundText,
+                count = "${status.outboundCount}건",
                 modifier = Modifier.weight(1f),
                 onClick = { navController.navigate(Screen.ReleasingHome.route) }
             )
@@ -182,13 +192,13 @@ fun StatusCards(navController: NavController) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             StatusCard(
                 title = "부족 재고 품목",
-                count = "3개",
+                count = "${status.lowStockCount}개",
                 modifier = Modifier.weight(1f),
                 onClick = { navController.navigate(Screen.Inventory.createRoute(filter = "부족")) }
             )
             StatusCard(
                 title = "재고 신청 리스트",
-                count = "5개",
+                count = "${status.requestCount}개",
                 modifier = Modifier.weight(1f),
                 onClick = { navController.navigate(Screen.Inventory.createRoute(filter = "재고신청")) }
             )
@@ -217,7 +227,7 @@ fun StatusCard(title: String, count: String, modifier: Modifier = Modifier, onCl
 }
 
 @Composable
-fun ChartSection(onChartClick: (String) -> Unit) {
+fun ChartSection(onChartClick: (ChartType) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -236,12 +246,12 @@ fun ChartSection(onChartClick: (String) -> Unit) {
             ChartItem(
                 icon = Icons.Default.Build,
                 label = "품목별 재고",
-                onClick = { onChartClick("inventory") }
+                onClick = { onChartClick(ChartType.INVENTORY) }
             )
             ChartItem(
                 icon = Icons.Default.Build,
                 label = "주간 입출고",
-                onClick = { onChartClick("weekly") }
+                onClick = { onChartClick(ChartType.WEEKLY) }
             )
         }
     }
@@ -259,25 +269,8 @@ fun ChartItem(icon: ImageVector, label: String, onClick: () -> Unit) {
     }
 }
 
-data class NotificationItem(val title: String, val content: String, val time: String, val type: NotificationType)
-enum class NotificationType {
-    NOTICE,
-    INBOUND,
-    STOCK_ALERT,
-    OUTBOUND
-}
-
 @Composable
-fun NotificationDialog(onDismiss: () -> Unit) {
-    val notifications = remember {
-        listOf(
-            NotificationItem("새로운 공지", "시스템 점검이 2024-09-15에 예정되어 있습니다.", "1시간 전", NotificationType.NOTICE),
-            NotificationItem("입고 완료", "SKU-12345 상품이 입고되었습니다.", "3시간 전", NotificationType.INBOUND),
-            NotificationItem("재고 부족 알림", "상품 \'\\'\'''샘플-A\'\\'\'의 재고가 10개 미만입니다.", "1일 전", NotificationType.STOCK_ALERT),
-            NotificationItem("출고 예정", "주문 #98765에 대한 상품 출고가 예정되어 있습니다.", "2일 전", NotificationType.OUTBOUND)
-        )
-    }
-
+fun NotificationDialog(notifications: List<NotificationItem>, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("알림", fontWeight = FontWeight.Bold, fontSize = 20.sp) },

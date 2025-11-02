@@ -1,8 +1,6 @@
 package com.ljs.and.ui.releasing
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -50,6 +47,7 @@ import com.ljs.and.ui.Screen
 fun ReleasingPickingScreen(
     navController: NavController,
     noteId: Long,
+    isReadOnly: Boolean,
     viewModel: ReleasingViewModel = viewModel(factory = ReleasingViewModelFactory())
 ) {
     LaunchedEffect(noteId) {
@@ -59,8 +57,6 @@ fun ReleasingPickingScreen(
     val uiState by viewModel.uiState.collectAsState()
     val selectedItem = uiState.selectedShippingNoteDetail
     val pickingList = selectedItem?.lines ?: emptyList()
-
-    val isReadOnly = selectedItem?.status == "COMPLETED"
 
     val allItemsCompleted = !isReadOnly && pickingList.isNotEmpty() && pickingList.all { it.pickedQty >= it.allocatedQty }
     var isSearchVisible by remember { mutableStateOf(false) }

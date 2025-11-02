@@ -76,8 +76,8 @@ sealed class Screen(val route: String) {
     object ReceivingInspection : Screen("receiving_inspection?isReadOnly={isReadOnly}") {
         fun createRoute(isReadOnly: Boolean) = "receiving_inspection?isReadOnly=$isReadOnly"
     }
-    object ReleasingPicking : Screen("releasing_picking/{noteId}") {
-        fun createRoute(noteId: Long) = "releasing_picking/$noteId"
+    object ReleasingPicking : Screen("releasing_picking/{noteId}?isReadOnly={isReadOnly}") {
+        fun createRoute(noteId: Long, isReadOnly: Boolean) = "releasing_picking/$noteId?isReadOnly=$isReadOnly"
     }
 
     object SearchResult : Screen("search_result/{flowType}?query={query}") {
@@ -193,11 +193,15 @@ private fun NavigationGraph(navController: NavHostController) {
             }
             composable(
                 route = Screen.ReleasingPicking.route,
-                arguments = listOf(navArgument("noteId") { type = NavType.LongType })
+                arguments = listOf(
+                    navArgument("noteId") { type = NavType.LongType },
+                    navArgument("isReadOnly") { type = NavType.BoolType; defaultValue = false }
+                )
             ) { backStackEntry ->
                 val noteId = backStackEntry.arguments?.getLong("noteId") ?: -1L
+                val isReadOnly = backStackEntry.arguments?.getBoolean("isReadOnly") ?: false
                 val viewModel: ReleasingViewModel = viewModel(factory = ReleasingViewModelFactory())
-                ReleasingPickingScreen(navController = navController, noteId = noteId, viewModel = viewModel)
+                ReleasingPickingScreen(navController = navController, noteId = noteId, viewModel = viewModel, isReadOnly = isReadOnly)
             }
         }
 

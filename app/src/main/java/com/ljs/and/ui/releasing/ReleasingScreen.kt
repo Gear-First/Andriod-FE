@@ -95,13 +95,13 @@ fun ReleasingScreen(
                     0 -> PendingScreen(
                         pendingList = uiState.notDoneShippingNotes?.items ?: emptyList(),
                         onItemClick = { item ->
-                            navController.navigate(Screen.ReleasingPicking.createRoute(item.noteId))
+                            navController.navigate(Screen.ReleasingPicking.createRoute(item.noteId, isReadOnly = false))
                         }
                     )
                     1 -> ReleasingCompletedScreen(
                         completedList = uiState.doneShippingNotes?.items ?: emptyList(),
                         onItemClick = { item ->
-                            navController.navigate(Screen.ReleasingPicking.createRoute(item.noteId))
+                            navController.navigate(Screen.ReleasingPicking.createRoute(item.noteId, isReadOnly = true))
                         }
                     )
                 }

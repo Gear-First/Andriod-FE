@@ -10,11 +10,30 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.DonutSmall
+import androidx.compose.material.icons.filled.DonutLarge
+import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.PieChartOutline
+import androidx.compose.material.icons.filled.DataUsage
+import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.InsertChart
+import androidx.compose.material.icons.filled.InsertChartOutlined
+import androidx.compose.material.icons.filled.StackedBarChart
+import androidx.compose.material.icons.filled.StackedBarChart
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -48,12 +67,6 @@ import com.ljs.and.ui.Screen
 import com.ljs.and.ui.theme.AndTheme
 import java.text.SimpleDateFormat
 import java.util.Locale
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -244,12 +257,12 @@ fun ChartSection(onChartClick: (ChartType) -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             ChartItem(
-                icon = Icons.Default.Build,
+                icon = Icons.Default.DonutLarge,
                 label = "품목별 재고",
                 onClick = { onChartClick(ChartType.INVENTORY) }
             )
             ChartItem(
-                icon = Icons.Default.Build,
+                icon = Icons.Default.Equalizer,
                 label = "주간 입출고",
                 onClick = { onChartClick(ChartType.WEEKLY) }
             )
@@ -295,9 +308,9 @@ fun NotificationDialog(notifications: List<NotificationItem>, onDismiss: () -> U
 fun NotificationListItem(notification: NotificationItem) {
     val icon = when (notification.type) {
         NotificationType.NOTICE -> Icons.Default.Info
-        NotificationType.INBOUND -> Icons.Default.ArrowForward
+        NotificationType.INBOUND -> Icons.Default.ArrowBack
         NotificationType.STOCK_ALERT -> Icons.Default.Warning
-        NotificationType.OUTBOUND -> Icons.Default.ArrowBack
+        NotificationType.OUTBOUND -> Icons.Default.ArrowForward
     }
     Row(
         verticalAlignment = Alignment.CenterVertically
@@ -334,12 +347,12 @@ fun QuickActions(navController: NavController) {
             onClick = { navController.navigate(Screen.BarcodeScan.createRoute("receiving")) }
         )
         QuickAction(
-            icon = Icons.Default.Build,
+            icon = Icons.Default.ArrowForward,
             label = "출고 등록",
             onClick = { navController.navigate(Screen.BarcodeScan.createRoute("releasing")) }
         )
         QuickAction(
-            icon = Icons.Default.Search,
+            icon = Icons.Default.Check,
             label = "재고 신청",
             onClick = { navController.navigate(Screen.InventoryRequestForm.route) }
         )

@@ -27,6 +27,7 @@ import com.ljs.and.ui.Screen
 fun BarcodeScanScreen(
     navController: NavController, 
     flowType: String,
+    noteId: Long, // noteId 추가
     lineId: Long,
     currentQty: Int
 ) {
@@ -59,13 +60,13 @@ fun BarcodeScanScreen(
         ScanActionButtons(
             onCancel = { navController.popBackStack() },
             onManualInput = {
-                // lineId가 -1L이면 신규 등록으로 간주, 아니면 기존 항목 수정으로 간주
                 val targetLineId = if(lineId == -1L) 0L else lineId
 
                 navController.navigate(
                     Screen.ManualInput.createRoute(
                         flowType = if (selectedTabIndex == 0) "receiving" else "releasing",
-                        lineId = targetLineId, // -1이 아닌 유효한 ID 전달
+                        noteId = noteId, // noteId 전달
+                        lineId = targetLineId, 
                         currentQty = currentQty
                     )
                 )
@@ -167,6 +168,6 @@ fun ScanActionButtons(onCancel: () -> Unit, onManualInput: () -> Unit, modifier:
 @Composable
 fun BarcodeScanScreenPreview() {
     MaterialTheme {
-        BarcodeScanScreen(navController = rememberNavController(), flowType = "receiving", lineId = -1L, currentQty = 0)
+        BarcodeScanScreen(navController = rememberNavController(), flowType = "receiving", noteId = -1L, lineId = -1L, currentQty = 0)
     }
 }

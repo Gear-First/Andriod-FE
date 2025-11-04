@@ -4,18 +4,7 @@ import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,9 +29,11 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.ljs.and.data.model.InspectorInfo
 import com.ljs.and.data.model.ReceivingLine
 import com.ljs.and.data.model.ReceivingNoteDetail
 import com.ljs.and.ui.Screen
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,33 +44,34 @@ fun ReceivingInspectionScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedNoteDetail = uiState.selectedReceivingNoteDetail
-
     val lifecycleOwner = LocalLifecycleOwner.current
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 navController.currentBackStackEntry?.savedStateHandle?.let {
                     val lineId = it.get<Long>("lineId")
                     val inspectedQty = it.get<Int>("inspectedQty")
-                    val hasIssue = it.get<Boolean>("hasIssue")
+                    val rejected = it.get<Boolean>("rejected")
+                    val lineRemark = it.get<String?>("lineRemark")
 
-                    if (lineId != null && inspectedQty != null && hasIssue != null) {
-                        viewModel.updateInspectionResult(lineId, inspectedQty, hasIssue)
+                    if (lineId != null && inspectedQty != null && rejected != null) {
+                        viewModel.updateReceivingLine(lineId, inspectedQty, rejected, lineRemark)
                         it.remove<Long>("lineId")
                         it.remove<Int>("inspectedQty")
-                        it.remove<Boolean>("hasIssue")
+                        it.remove<Boolean>("rejected")
+                        it.remove<String?>("lineRemark")
                     }
                 }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val allItemsInspected = !isReadOnly && selectedNoteDetail?.lines?.isNotEmpty() == true &&
-            selectedNoteDetail.lines.all { it.status == "ACCEPTED" || it.status.startsWith("COMPLETED") }
+    val allItemsInspected = !isReadOnly &&
+            selectedNoteDetail?.lines?.isNotEmpty() == true &&
+            selectedNoteDetail.lines.all { it.status == "ACCEPTED" || it.status.startsWith("COMPLETED") || it.status == "REJECTED"}
 
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -104,14 +96,21 @@ fun ReceivingInspectionScreen(
         bottomBar = {
             InspectionBottomBar(
                 isReadOnly = isReadOnly,
-                onConfirm = { // "확인" 버튼 (읽기 전용 상태)
-                    navController.previousBackStackEntry?.savedStateHandle?.set("selectedTab", 1)
+                onConfirm = {
+                    navController.previousBackStackEntry?.savedStateHandle?.set("refreshDoneList", true)
                     navController.popBackStack()
                 },
                 onCancel = { navController.popBackStack() },
-                onComplete = { // "검수 완료" 버튼
-                    navController.previousBackStackEntry?.savedStateHandle?.set("selectedTab", 1)
-                    navController.popBackStack()
+                onComplete = {
+                    selectedNoteDetail?.noteId?.let { noteId ->
+                        Log.d("ReceivingInspection", "검수 완료 요청: $noteId")
+                        val inspectorInfo = InspectorInfo(
+                            inspectorName = "홍길동",
+                            inspectorDept = "품질관리팀",
+                            inspectorPhone = "010-1234-5678"
+                        )
+                        viewModel.completeReceiving(noteId, inspectorInfo)
+                    }
                 },
                 isCompleteEnabled = allItemsInspected
             )
@@ -119,24 +118,45 @@ fun ReceivingInspectionScreen(
         containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
         if (uiState.isLoading && selectedNoteDetail == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else if (selectedNoteDetail != null) {
-            Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
-                InspectionHeader(supplier = selectedNoteDetail.supplierName, date = selectedNoteDetail.expectedReceiveDate ?: "")
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
+            ) {
+                InspectionHeader(
+                    supplier = selectedNoteDetail.supplierName,
+                    date = selectedNoteDetail.expectedReceiveDate ?: "",
+                    inspector = if (isReadOnly) selectedNoteDetail.inspectorName else null
+                )
                 InspectionList(
                     noteDetail = selectedNoteDetail,
                     isReadOnly = isReadOnly,
                     onItemClick = { line ->
-                        navController.navigate(Screen.BarcodeScan.createRoute(
-                            flowType = "receiving",
-                            lineId = line.lineId,
-                            currentQty = line.inspectedQty
-                        ))
+                        navController.navigate(
+                            Screen.BarcodeScan.createRoute(
+                                flowType = "receiving",
+                                noteId = selectedNoteDetail.noteId, // noteId 추가
+                                lineId = line.lineId,
+                                currentQty = line.inspectedQty
+                            )
+                        )
                     }
                 )
             }
+        }
+    }
+
+    LaunchedEffect(uiState.receivingCompletion) {
+        uiState.receivingCompletion?.let {
+            Log.d("ReceivingInspection", "입고 완료 완료됨: ${it.completedAt}")
+            delay(400)
+            navController.previousBackStackEntry?.savedStateHandle?.set("refreshDoneList", true)
+            navController.popBackStack()
+            viewModel.clearReceivingCompletionEvent()
         }
     }
 }
@@ -177,16 +197,16 @@ fun InspectionTopAppBar(
                     )
                 )
             } else {
-                Text(if(isReadOnly) "입고 상세" else "검수 중", fontWeight = FontWeight.Bold)
+                Text(if (isReadOnly) "입고 상세" else "검수 중", fontWeight = FontWeight.Bold)
             }
         },
         navigationIcon = {
-             if (isSearchVisible) {
+            if (isSearchVisible) {
                 IconButton(onClick = { onSearchVisibilityChange(false) }) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
             } else {
-                 IconButton(onClick = onNavigateBack) {
+                IconButton(onClick = onNavigateBack) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
             }
@@ -201,7 +221,7 @@ fun InspectionTopAppBar(
 }
 
 @Composable
-fun InspectionHeader(supplier: String, date: String) {
+fun InspectionHeader(supplier: String, date: String, inspector: String?) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -212,6 +232,9 @@ fun InspectionHeader(supplier: String, date: String) {
         Column {
             Text("공급 업체: $supplier", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Text("예정일: $date", fontSize = 14.sp, color = Color.Gray)
+            inspector?.let {
+                Text("담당자: $it", fontSize = 14.sp, color = Color.Gray)
+            }
         }
     }
 }
@@ -226,28 +249,38 @@ fun InspectionList(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        items(noteDetail.lines, key = { it.lineId }) { line -> // key 추가
-            InspectionItemCard(
-                line = line,
-                noteDetail = noteDetail,
-                isReadOnly = isReadOnly,
-                onClick = { onItemClick(line) }
-            )
+        items(noteDetail.lines, key = { it.lineId }) { line ->
+            InspectionItemCard(line, noteDetail, isReadOnly, onClick = { onItemClick(line) })
         }
     }
 }
 
 @Composable
-fun InspectionItemCard(line: ReceivingLine, noteDetail: ReceivingNoteDetail, isReadOnly: Boolean, onClick: () -> Unit) {
+fun InspectionItemCard(
+    line: ReceivingLine,
+    noteDetail: ReceivingNoteDetail,
+    isReadOnly: Boolean,
+    onClick: () -> Unit
+) {
     val isInspected = line.status == "ACCEPTED" || line.status.startsWith("COMPLETED")
+    val isRejected = line.status == "REJECTED"
+
+    // 버튼 텍스트와 색상 로직 수정
+    val buttonText = when {
+        isRejected -> "불량"
+        isInspected -> "검수완료"
+        else -> "검수 전"
+    }
+    val buttonColor = when {
+        isRejected -> Color.Red
+        isInspected -> Color(0xFF007BFF)
+        else -> Color.Gray
+    }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(
-                enabled = !isReadOnly && !isInspected,
-                onClick = onClick
-                ),
+            .clickable(enabled = !isReadOnly && !isInspected && !isRejected, onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -272,25 +305,22 @@ fun InspectionItemCard(line: ReceivingLine, noteDetail: ReceivingNoteDetail, isR
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AsyncImage(
                     model = line.product.imgUrl,
                     contentDescription = "Product Image",
                     modifier = Modifier.size(80.dp)
                 )
                 OutlinedButton(
-                    onClick = { /* Clicks are handled by the card */ },
+                    onClick = {},
                     shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, if (isInspected) Color(0xFF007BFF) else Color.Red),
+                    border = BorderStroke(1.dp, buttonColor),
                     enabled = false,
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
                 ) {
                     Text(
-                        text = if (isInspected) "검수완료" else "검수 전",
-                        color = if (isInspected) Color(0xFF007BFF) else Color.Red,
+                        text = buttonText,
+                        color = buttonColor,
                         fontWeight = FontWeight.Bold
                     )
                 }

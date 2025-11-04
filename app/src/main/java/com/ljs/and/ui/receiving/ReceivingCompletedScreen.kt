@@ -2,16 +2,7 @@ package com.ljs.and.ui.receiving
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -22,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ljs.and.data.model.ReceivingNote
@@ -37,43 +27,51 @@ fun ReceivingCompletedScreen(
 ) {
     val listState = rememberLazyListState()
 
-    // 스크롤이 리스트의 끝에 도달했는지 확인
     val reachedBottom by remember {
         derivedStateOf {
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-            lastVisibleItem != null && lastVisibleItem.index == listState.layoutInfo.totalItemsCount - 1 && canLoadMore
+            lastVisibleItem != null &&
+                    lastVisibleItem.index == listState.layoutInfo.totalItemsCount - 1 &&
+                    canLoadMore
         }
     }
 
-    // 리스트 끝에 도달하면 추가 데이터 로드
     LaunchedEffect(reachedBottom) {
         if (reachedBottom && !isLoading) {
             onLoadMore()
         }
     }
 
-    if (completedList.isEmpty() && !isLoading) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("입고 완료된 항목이 없습니다.")
-        }
-    } else {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
-        ) {
-            items(completedList, key = { it.noteId }) { item ->
-                CompletedCard(item = item, onClick = { onItemClick(item) })
+    Box(modifier = Modifier.fillMaxSize()) {
+        when {
+            completedList.isEmpty() && !isLoading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("입고 완료된 항목이 없습니다.")
+                }
             }
-            if (isLoading) {
-                item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+
+            else -> {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
+                ) {
+                    items(completedList, key = { it.noteId }) { item ->
+                        CompletedCard(item = item, onClick = { onItemClick(item) })
+                    }
+                }
+
+                // ✅ 로딩 시 리스트는 그대로, 반투명 오버레이만 표시
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator()
                     }
                 }
@@ -114,7 +112,7 @@ fun CompletedCard(item: ReceivingNote, onClick: () -> Unit) {
                     fontSize = 12.sp
                 )
             }
-            Text("입고번호: ${item.noteId}", fontSize = 14.sp, color = Color.Gray)
+            Text("입고번호: ${item.receivingNo}", fontSize = 14.sp, color = Color.Gray)
             Text("입고일시: ${item.completedAt ?: ""}", fontSize = 14.sp, color = Color.Gray)
             Text("품목 종류: ${item.itemKindsNumber}종", fontSize = 14.sp, color = Color.Gray)
             Text("총 수량: ${item.totalQty}개", fontSize = 14.sp, color = Color.Gray)
@@ -122,8 +120,7 @@ fun CompletedCard(item: ReceivingNote, onClick: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Box(
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
                 Button(
@@ -142,16 +139,5 @@ fun CompletedCard(item: ReceivingNote, onClick: () -> Unit) {
                 }
             }
         }
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFFF5F5F7)
-@Composable
-fun ReceivingCompletedScreenPreview() {
-    val dummyList = listOf(
-        ReceivingNote(9007199254740991, "거래처 C", 1, 200, "COMPLETED_OK", "2025-10-27T12:25:11")
-    )
-    MaterialTheme {
-        ReceivingCompletedScreen(completedList = dummyList, onItemClick = {}, onLoadMore = {}, isLoading = false, canLoadMore = false)
     }
 }

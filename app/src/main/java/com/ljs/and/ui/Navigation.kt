@@ -6,10 +6,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -67,14 +74,14 @@ sealed class Screen(val route: String) {
     }
     object More : Screen("more")
     object InventoryRequestForm : Screen("inventory_request")
-    object BarcodeScan : Screen("barcodescan/{flowType}?lineId={lineId}&currentQty={currentQty}") {
-        fun createRoute(flowType: String, lineId: Long = -1L, currentQty: Int = 0) = "barcodescan/$flowType?lineId=$lineId&currentQty=$currentQty"
+    object BarcodeScan : Screen("barcodescan/{flowType}?noteId={noteId}&lineId={lineId}&currentQty={currentQty}") {
+        fun createRoute(flowType: String, noteId: Long = -1L, lineId: Long = -1L, currentQty: Int = 0) = "barcodescan/$flowType?noteId=$noteId&lineId=$lineId&currentQty=$currentQty"
     }
-    object ManualInput : Screen("manual_input/{flowType}?lineId={lineId}&currentQty={currentQty}") {
-        fun createRoute(flowType: String, lineId: Long, currentQty: Int) = "manual_input/$flowType?lineId=$lineId&currentQty=$currentQty"
+    object ManualInput : Screen("manual_input/{flowType}?noteId={noteId}&lineId={lineId}&currentQty={currentQty}") {
+        fun createRoute(flowType: String, noteId: Long, lineId: Long, currentQty: Int) = "manual_input/$flowType?noteId=$noteId&lineId=$lineId&currentQty=$currentQty"
     }
-    object ReceivingInspection : Screen("receiving_inspection?isReadOnly={isReadOnly}") {
-        fun createRoute(isReadOnly: Boolean) = "receiving_inspection?isReadOnly=$isReadOnly"
+    object ReceivingInspection : Screen("receiving_inspection/{isReadOnly}") {
+        fun createRoute(isReadOnly: Boolean) = "receiving_inspection/$isReadOnly"
     }
     object ReleasingPicking : Screen("releasing_picking/{noteId}?isReadOnly={isReadOnly}") {
         fun createRoute(noteId: Long, isReadOnly: Boolean) = "releasing_picking/$noteId?isReadOnly=$isReadOnly"
@@ -93,8 +100,8 @@ sealed class Screen(val route: String) {
 
 private val bottomNavItems = listOf(
     Screen.Home to Pair("홈", Icons.Filled.Home),
-    Screen.Receiving to Pair("입고", Icons.Filled.Add),
-    Screen.Releasing to Pair("출고", Icons.Filled.ExitToApp),
+    Screen.Receiving to Pair("입고", Icons.Filled.Inventory),
+    Screen.Releasing to Pair("출고", Icons.Filled.LocalShipping),
     Screen.Inventory to Pair("재고", Icons.Filled.Search),
     Screen.More to Pair("더보기", Icons.Filled.MoreVert)
 )
@@ -177,7 +184,7 @@ private fun NavigationGraph(navController: NavHostController) {
             }
             composable(
                 route = Screen.ReceivingInspection.route,
-                arguments = listOf(navArgument("isReadOnly") { type = NavType.BoolType; defaultValue = false })
+                arguments = listOf(navArgument("isReadOnly") { type = NavType.BoolType })
             ) { backStackEntry ->
                 val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Receiving.route) }
                 val viewModel: ReceivingViewModel = viewModel(parentEntry, factory = ReceivingViewModelFactory())
@@ -221,6 +228,7 @@ private fun NavigationGraph(navController: NavHostController) {
             route = Screen.BarcodeScan.route,
             arguments = listOf(
                 navArgument("flowType") { type = NavType.StringType },
+                navArgument("noteId") { type = NavType.LongType; defaultValue = -1L },
                 navArgument("lineId") { type = NavType.LongType; defaultValue = -1L },
                 navArgument("currentQty") { type = NavType.IntType; defaultValue = 0 }
             )
@@ -228,6 +236,7 @@ private fun NavigationGraph(navController: NavHostController) {
             BarcodeScanScreen(
                 navController = navController,
                 flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving",
+                noteId = backStackEntry.arguments?.getLong("noteId") ?: -1L,
                 lineId = backStackEntry.arguments?.getLong("lineId") ?: -1L,
                 currentQty = backStackEntry.arguments?.getInt("currentQty") ?: 0
             )
@@ -236,15 +245,20 @@ private fun NavigationGraph(navController: NavHostController) {
             route = Screen.ManualInput.route,
             arguments = listOf(
                 navArgument("flowType") { type = NavType.StringType },
+                navArgument("noteId") { type = NavType.LongType; defaultValue = -1L },
                 navArgument("lineId") { type = NavType.LongType },
                 navArgument("currentQty") { type = NavType.IntType }
             )
         ) { backStackEntry ->
+            val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Receiving.route) }
+            val viewModel: ReceivingViewModel = viewModel(parentEntry, factory = ReceivingViewModelFactory())
             ManualInputScreen(
                 navController = navController,
                 flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving",
+                noteId = backStackEntry.arguments?.getLong("noteId") ?: -1L,
                 lineId = backStackEntry.arguments?.getLong("lineId") ?: -1L,
-                currentQty = backStackEntry.arguments?.getInt("currentQty") ?: 0
+                currentQty = backStackEntry.arguments?.getInt("currentQty") ?: 0,
+                viewModel = viewModel
             )
         }
 

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,44 +50,26 @@ fun ReceivingScreen(
     viewModel: ReceivingViewModel = viewModel(factory = ReceivingViewModelFactory())
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
-    // 1. Get the initial tab index from savedStateHandle
-    val initialTabIndex = navController.currentBackStackEntry?.savedStateHandle?.get<Int>("selectedTab") ?: 0
-    var selectedTabIndex by remember { mutableStateOf(initialTabIndex) }
-
+    var selectedTabIndex by rememberSaveable { mutableStateOf(0) }
     val tabs = listOf("입고 대기", "입고 완료")
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                Log.d("ReceivingScreen", "ON_RESUME: Checking for signals.")
-                navController.currentBackStackEntry?.savedStateHandle?.let { handle ->
-                    // 2. Set the tab index and immediately refresh if it's from the handle
-                    handle.get<Int>("selectedTab")?.let {
-                        Log.d("ReceivingScreen", "Selected tab signal received: $it")
-                        selectedTabIndex = it
-                        viewModel.refreshAllLists() // Refresh data for the new tab
-                        handle.remove<Int>("selectedTab")
-                    }
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
+    LaunchedEffect(Unit) {
+        if (uiState.notDoneReceivingList.isEmpty() && uiState.doneReceivingList.isEmpty()) {
+            viewModel.refreshAllLists()
         }
     }
 
-    // 3. Load data only when the screen is first created or when a tab is manually selected
-    LaunchedEffect(selectedTabIndex) {
-        if (selectedTabIndex == 0) {
-            viewModel.loadNotDoneReceivingNotes()
-        } else {
-            viewModel.loadDoneReceivingNotes()
+    // InspectionScreen에서 돌아올 때 목록 새로고침 및 탭 전환
+    LaunchedEffect(navController.currentBackStackEntry) {
+        navController.currentBackStackEntry?.savedStateHandle?.get<Boolean>("refreshDoneList")?.let {
+            if (it) {
+                viewModel.refreshAllLists()
+                selectedTabIndex = 1
+                navController.currentBackStackEntry?.savedStateHandle?.remove<Boolean>("refreshDoneList")
+            }
         }
     }
 
@@ -112,37 +95,64 @@ fun ReceivingScreen(
             ReceivingTabRow(
                 selectedTabIndex = selectedTabIndex,
                 tabs = tabs,
-                onTabSelected = { 
-                    selectedTabIndex = it
-                    // No need to call refresh here, LaunchedEffect will handle it.
-                }
+                onTabSelected = { selectedTabIndex = it }
             )
-            
+
             when (selectedTabIndex) {
-                0 -> PendingScreen(
-                    pendingList = uiState.notDoneReceivingList,
-                    onItemClick = { item ->
-                        viewModel.loadReceivingNoteDetail(item.noteId)
-                        navController.navigate(Screen.ReceivingInspection.createRoute(isReadOnly = false))
-                    },
-                    onLoadMore = { viewModel.loadNotDoneReceivingNotes() },
-                    isLoading = uiState.isLoading,
-                    canLoadMore = uiState.canLoadMoreNotDone
-                )
-                1 -> ReceivingCompletedScreen(
-                    completedList = uiState.doneReceivingList,
-                    onItemClick = { item ->
-                        viewModel.loadReceivingNoteDetail(item.noteId)
-                        navController.navigate(Screen.ReceivingInspection.createRoute(isReadOnly = true))
-                    },
-                    onLoadMore = { viewModel.loadDoneReceivingNotes() },
-                    isLoading = uiState.isLoading,
-                    canLoadMore = uiState.canLoadMoreDone
-                )
+                0 -> Box(Modifier.fillMaxSize()) {
+                    PendingScreen(
+                        pendingList = uiState.notDoneReceivingList,
+                        onItemClick = { item ->
+                            viewModel.loadReceivingNoteDetail(item.noteId)
+                            navController.navigate(Screen.ReceivingInspection.createRoute(isReadOnly = false))
+                        },
+                        onLoadMore = { viewModel.loadNotDoneReceivingNotes() },
+                        isLoading = uiState.isLoading,
+                        canLoadMore = uiState.canLoadMoreNotDone
+                    )
+                    if (uiState.isLoading && uiState.notDoneReceivingList.isNotEmpty()) {
+                        LoadingOverlay()
+                    }
+                }
+
+                1 -> Box(Modifier.fillMaxSize()) {
+                    ReceivingCompletedScreen(
+                        completedList = uiState.doneReceivingList,
+                        onItemClick = { item ->
+                            viewModel.loadReceivingNoteDetail(item.noteId)
+                            navController.navigate(Screen.ReceivingInspection.createRoute(isReadOnly = true))
+                        },
+                        onLoadMore = { viewModel.loadDoneReceivingNotes() },
+                        isLoading = uiState.isLoading,
+                        canLoadMore = uiState.canLoadMoreDone
+                    )
+                    if (uiState.isLoading && uiState.doneReceivingList.isNotEmpty()) {
+                        LoadingOverlay()
+                    }
+                }
+            }
+
+            if (uiState.isLoading && uiState.notDoneReceivingList.isEmpty() && uiState.doneReceivingList.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
         }
     }
 }
+
+@Composable
+fun LoadingOverlay() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -239,7 +249,7 @@ fun PendingScreen(
     canLoadMore: Boolean
 ) {
     val listState = rememberLazyListState()
-    
+
     val reachedBottom by remember {
         derivedStateOf {
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
@@ -272,7 +282,7 @@ fun PendingScreen(
             items(pendingList, key = { it.noteId }) { item ->
                 PendingCard(item = item, onStartInspection = { onItemClick(item) })
             }
-            if (isLoading) {
+            if (isLoading && pendingList.isNotEmpty()) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
@@ -315,8 +325,7 @@ fun PendingCard(item: ReceivingNote, onStartInspection: () -> Unit) {
                     fontSize = 12.sp
                 )
             }
-            Text("입고번호: ${item.noteId}", fontSize = 14.sp, color = Color.Gray)
-            Text("입고 예정일: ${item.completedAt ?: ""}", fontSize = 14.sp, color = Color.Gray) // 이 필드는 API에 따라 변경될 수 있습니다.
+            Text("입고번호: ${item.receivingNo}", fontSize = 14.sp, color = Color.Gray)
             Text("품목 종류: ${item.itemKindsNumber}종", fontSize = 14.sp, color = Color.Gray)
             Text("총 수량: ${item.totalQty}개", fontSize = 14.sp, color = Color.Gray)
 
@@ -327,20 +336,17 @@ fun PendingCard(item: ReceivingNote, onStartInspection: () -> Unit) {
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                OutlinedButton(
+                Button(
                     onClick = onStartInspection,
                     modifier = Modifier
                         .width(330.dp)
                         .height(44.dp),
                     shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, Color(0xFF007BFF)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF007BFF)
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
                 ) {
                     Text(
                         "검수 시작",
+                        color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
                 }

@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
@@ -103,7 +105,10 @@ fun InventoryScreen(
                 0 -> InventoryStatusScreen(
                     inventoryState = inventoryState,
                     onFilterChange = { viewModel.updateInventoryFilter(it) },
-                    onItemClick = { /* navController.navigate(...) */ }
+                    onItemClick = { /* navController.navigate(...) */ },
+                    onPageChange = { viewModel.goToPage(it) },
+                    onNextPage = { viewModel.goToNextPage() },
+                    onPreviousPage = { viewModel.goToPreviousPage() }
                 )
                 1 -> InventoryRequestScreen(
                     navController = navController,
@@ -212,29 +217,22 @@ fun InventoryTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (I
 fun InventoryStatusScreen(
     inventoryState: InventoryState,
     onFilterChange: (String) -> Unit,
-    onItemClick: (InventoryItem) -> Unit
+    onItemClick: (InventoryItem) -> Unit,
+    onPageChange: (Int) -> Unit,
+    onNextPage: () -> Unit,
+    onPreviousPage: () -> Unit
 ) {
-    val filteredList = remember(inventoryState.selectedFilter, inventoryState.inventoryList) {
-        when (inventoryState.selectedFilter) {
-            "정상" -> inventoryState.inventoryList.filter { it.status == ItemStatus.NORMAL }
-            "부족" -> inventoryState.inventoryList.filter { it.status == ItemStatus.LOW_STOCK}
-//                    || it.status == ItemStatus.SOLD_OUT }
-//            "불량" -> inventoryState.inventoryList.filter { it.status == ItemStatus.DEFECTIVE }
-            else -> inventoryState.inventoryList
-        }
-    }
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(vertical = 16.dp)
+        contentPadding = PaddingValues(vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             InventorySummaryDashboard(
                 totalItems = inventoryState.totalItems,
-                totalQuantity = inventoryState.totalQuantity.toInt(), // Note: conversion to Int
+                totalQuantity = inventoryState.totalQuantity.toInt(),
                 lackingItems = inventoryState.lackingItems,
                 defectiveItems = inventoryState.defectiveItems
             )
@@ -245,11 +243,95 @@ fun InventoryStatusScreen(
                 onOptionSelected = onFilterChange
             )
         }
-        items(filteredList) { item ->
-            InventoryItemCard(item = item, onClick = { onItemClick(item) })
+
+        if (inventoryState.isLoading) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillParentMaxSize() // Fill the parent LazyColumn
+                        .padding(vertical = 50.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+        } else if (inventoryState.inventoryList.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillParentMaxSize()
+                        .padding(vertical = 50.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("표시할 항목이 없습니다.")
+                }
+            }
+        } else {
+            items(inventoryState.inventoryList) { item ->
+                InventoryItemCard(item = item, onClick = { onItemClick(item) })
+            }
+
+            if (inventoryState.totalPages > 1) {
+                item {
+                    PaginationControls(
+                        currentPage = inventoryState.currentPage,
+                        totalPages = inventoryState.totalPages,
+                        onPageChange = onPageChange,
+                        onNextPage = onNextPage,
+                        onPreviousPage = onPreviousPage
+                    )
+                }
+            }
         }
     }
 }
+
+
+@Composable
+fun PaginationControls(
+    currentPage: Int,
+    totalPages: Int,
+    onPageChange: (Int) -> Unit,
+    onNextPage: () -> Unit,
+    onPreviousPage: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onPreviousPage, enabled = currentPage > 1) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous Page")
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Page numbers
+        val maxPageNumbersToShow = 5
+        val startPage = ((currentPage - 1) / maxPageNumbersToShow) * maxPageNumbersToShow + 1
+        val endPage = (startPage + maxPageNumbersToShow - 1).coerceAtMost(totalPages)
+
+        for (i in startPage..endPage) {
+            Text(
+                text = i.toString(),
+                modifier = Modifier
+                    .clickable { onPageChange(i) }
+                    .padding(8.dp),
+                fontWeight = if (i == currentPage) FontWeight.Bold else FontWeight.Normal,
+                color = if (i == currentPage) MaterialTheme.colorScheme.primary else Color.Gray
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        IconButton(onClick = onNextPage, enabled = currentPage < totalPages) {
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Page")
+        }
+    }
+}
+
 
 @Composable
 fun InventorySummaryDashboard(totalItems: Int, totalQuantity: Int, lackingItems: Int, defectiveItems: Int) {

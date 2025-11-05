@@ -2,116 +2,141 @@ package com.ljs.and.data.model
 
 import com.google.gson.annotations.SerializedName
 
-// POST /api/v1/shipping 요청 본문
+// 출고 요청 생성 Request Body
 data class CreateShippingRequest(
-    @SerializedName("customerName")
-    val customerName: String = "",
-    @SerializedName("warehouseId")
-    val warehouseId: Long = 0,
+    @SerializedName("branchName")
+    val branchName: String,
+    @SerializedName("warehouseCode")
+    val warehouseCode: String,
     @SerializedName("shippingNo")
-    val shippingNo: String = "",
+    val shippingNo: String?,
     @SerializedName("requestedAt")
-    val requestedAt: String = "",
+    val requestedAt: String,
     @SerializedName("expectedShipDate")
-    val expectedShipDate: String = "",
+    val expectedShipDate: String?,
     @SerializedName("remark")
-    val remark: String = "",
+    val remark: String?,
     @SerializedName("lines")
-    val lines: List<CreateShippingRequestLine> = emptyList()
+    val lines: List<CreateShippingLine>
 )
 
-data class CreateShippingRequestLine(
+data class CreateShippingLine(
     @SerializedName("productId")
-    val productId: Long = 0,
+    val productId: Long,
     @SerializedName("orderedQty")
-    val orderedQty: Int = 0,
+    val orderedQty: Int,
     @SerializedName("lineRemark")
-    val lineRemark: String = ""
+    val lineRemark: String?
 )
 
-// GET /api/v1/shipping/not-done, /api/v1/shipping/done 응답 본문 (data 필드)
+// 출고 완료 요청 Request Body
+data class CompleteShippingRequest(
+    @SerializedName("assigneeName")
+    val assigneeName: String,
+    @SerializedName("assigneeDept")
+    val assigneeDept: String,
+    @SerializedName("assigneePhone")
+    val assigneePhone: String
+)
+
+// 출고 항목 업데이트 Request Body
+data class UpdateShippingLineRequest(
+    @SerializedName("pickedQty")
+    val pickedQty: Int,
+    @SerializedName("lineRemark")
+    val lineRemark: String?
+)
+
+// 출고 완료 응답
+data class ShippingCompletion(
+    @SerializedName("completedAt")
+    val completedAt: String,
+    @SerializedName("totalShippedQty")
+    val totalShippedQty: Int
+)
+
+// 출고 통합 리스트 조회 응답
 data class PagedShippingNotes(
     @SerializedName("items")
-    val items: List<ShippingNote> = emptyList(),
+    val items: List<ShippingNote>,
     @SerializedName("page")
-    val page: Int = 0,
+    val page: Int,
     @SerializedName("size")
-    val size: Int = 0,
+    val size: Int,
     @SerializedName("total")
-    val total: Long = 0
+    val total: Long
 )
 
-// GET /api/v1/shipping/not-done, /api/v1/shipping/done 응답 본문 (items 필드)
+// 출고 리스트 아이템
 data class ShippingNote(
     @SerializedName("noteId")
-    val noteId: Long = 0,
+    val noteId: Long,
+    @SerializedName("shippingNo")
+    val shippingNo: String,
     @SerializedName("branchName")
-    val branchName: String = "",
+    val branchName: String,
     @SerializedName("itemKindsNumber")
-    val itemKindsNumber: Int = 0,
+    val itemKindsNumber: Int,
     @SerializedName("totalQty")
-    val totalQty: Int = 0,
+    val totalQty: Int,
     @SerializedName("status")
-    val status: String = "",
+    val status: String,
+    @SerializedName("warehouseCode")
+    val warehouseCode: String,
+    @SerializedName("requestedAt")
+    val requestedAt: String,
+    @SerializedName("expectedShipDate")
+    val expectedShipDate: String?,
     @SerializedName("completedAt")
-    val completedAt: String? = null
+    val completedAt: String?
 )
 
-// GET /api/v1/shipping/{noteId}, POST /api/v1/shipping, PATCH /api/v1/shipping/{noteId}/lines/{lineId} 응답 본문 (data 필드)
+// 출고 내역서 상세
 data class ShippingNoteDetail(
     @SerializedName("noteId")
-    val noteId: Long = 0,
+    val noteId: Long,
     @SerializedName("branchName")
-    val branchName: String = "",
+    val branchName: String,
     @SerializedName("itemKindsNumber")
-    val itemKindsNumber: Int = 0,
+    val itemKindsNumber: Int,
     @SerializedName("totalQty")
-    val totalQty: Int = 0,
+    val totalQty: Int,
     @SerializedName("status")
-    val status: String = "",
+    val status: String,
     @SerializedName("completedAt")
-    val completedAt: String? = null,
+    val completedAt: String?,
     @SerializedName("shippingNo")
-    val shippingNo: String? = null,
-    @SerializedName("warehouseId")
-    val warehouseId: Long? = null,
+    val shippingNo: String,
+    @SerializedName("warehouseCode")
+    val warehouseCode: String,
     @SerializedName("requestedAt")
-    val requestedAt: String? = null,
+    val requestedAt: String,
     @SerializedName("expectedShipDate")
-    val expectedShipDate: String? = null,
+    val expectedShipDate: String?,
     @SerializedName("shippedAt")
-    val shippedAt: String? = null,
+    val shippedAt: String?,
     @SerializedName("assigneeName")
-    val assigneeName: String? = null,
+    val assigneeName: String?,
     @SerializedName("assigneeDept")
-    val assigneeDept: String? = null,
+    val assigneeDept: String?,
     @SerializedName("assigneePhone")
-    val assigneePhone: String? = null,
+    val assigneePhone: String?,
     @SerializedName("remark")
-    val remark: String? = null,
+    val remark: String?,
     @SerializedName("lines")
-    val lines: List<ShippingLine> = emptyList()
+    val lines: List<ShippingLine>
 )
 
+// 출고 상세 항목
 data class ShippingLine(
     @SerializedName("lineId")
-    val lineId: Long = 0,
+    val lineId: Long,
     @SerializedName("product")
-    val product: Product = Product(),
+    val product: Product,
     @SerializedName("orderedQty")
-    val orderedQty: Int = 0,
-    @SerializedName("allocatedQty")
-    val allocatedQty: Int = 0,
+    val orderedQty: Int,
     @SerializedName("pickedQty")
-    val pickedQty: Int = 0,
+    val pickedQty: Int,
     @SerializedName("status")
-    val status: String = ""
-)
-
-// PATCH /api/v1/shipping/{noteId}/lines/{lineId} 요청 본문
-data class UpdateShippingLineRequest(
-    @SerializedName("allocatedQty")
-    val allocatedQty: Int,
-    @SerializedName("pickedQty")
-    val pickedQty: Int
+    val status: String
 )

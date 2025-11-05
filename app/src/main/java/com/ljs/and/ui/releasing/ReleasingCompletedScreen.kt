@@ -14,14 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,8 +28,29 @@ import androidx.compose.ui.unit.sp
 import com.ljs.and.data.model.ShippingNote
 
 @Composable
-fun ReleasingCompletedScreen(completedList: List<ShippingNote>, onItemClick: (ShippingNote) -> Unit) {
-    if (completedList.isEmpty()) {
+fun ReleasingCompletedScreen(
+    completedList: List<ShippingNote>,
+    onItemClick: (ShippingNote) -> Unit,
+    onLoadMore: () -> Unit,
+    isLoading: Boolean,
+    canLoadMore: Boolean
+) {
+    val listState = rememberLazyListState()
+
+    val reachedBottom by remember {
+        derivedStateOf {
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            lastVisibleItem != null && lastVisibleItem.index == listState.layoutInfo.totalItemsCount - 1 && canLoadMore
+        }
+    }
+
+    LaunchedEffect(reachedBottom) {
+        if (reachedBottom && !isLoading) {
+            onLoadMore()
+        }
+    }
+
+    if (completedList.isEmpty() && !isLoading) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -42,14 +59,22 @@ fun ReleasingCompletedScreen(completedList: List<ShippingNote>, onItemClick: (Sh
         }
     } else {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
         ) {
-            items(completedList) { item ->
+            items(completedList, key = { it.noteId }) { item ->
                 CompletedCard(item = item, onClick = { onItemClick(item) })
+            }
+            if (isLoading && completedList.isNotEmpty()) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
             }
         }
     }
@@ -59,7 +84,7 @@ fun ReleasingCompletedScreen(completedList: List<ShippingNote>, onItemClick: (Sh
 fun CompletedCard(item: ShippingNote, onClick: () -> Unit) {
     val statusColor = when (item.status) {
         "COMPLETED" -> Color(0xFF007BFF)
-        "DELAYED" -> Color(0xFF007BFF)
+        "DELAYED" -> Color(0xFFFFA500) // Orange for delayed
         else -> Color.Gray
     }
 
@@ -77,13 +102,13 @@ fun CompletedCard(item: ShippingNote, onClick: () -> Unit) {
         ) {
             Box(Modifier.fillMaxWidth()) {
                 Text(
-                    text = "거래처: ${item.branchName ?: ""}",
+                    text = "거래처: ${item.branchName}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     modifier = Modifier.align(Alignment.CenterStart)
                 )
                 Text(
-                    text = item.status ?: "",
+                    text = item.status,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .background(statusColor, RoundedCornerShape(4.dp))
@@ -93,7 +118,7 @@ fun CompletedCard(item: ShippingNote, onClick: () -> Unit) {
                     fontSize = 12.sp
                 )
             }
-            Text("출고번호: ${item.noteId}", fontSize = 14.sp, color = Color.Gray)
+            Text("출고번호: ${item.shippingNo}", fontSize = 14.sp, color = Color.Gray)
             Text("출고일시: ${item.completedAt ?: ""}", fontSize = 14.sp, color = Color.Gray)
             Text("품목 종류: ${item.itemKindsNumber}종", fontSize = 14.sp, color = Color.Gray)
             Text("총 수량: ${item.totalQty}개", fontSize = 14.sp, color = Color.Gray)
@@ -128,10 +153,32 @@ fun CompletedCard(item: ShippingNote, onClick: () -> Unit) {
 @Composable
 fun ReleasingCompletedScreenPreview() {
     val dummyList = listOf(
-        ShippingNote(noteId = 1, branchName = "거래처 A", itemKindsNumber = 2, totalQty = 80, status = "COMPLETED", completedAt = "2025-10-28T02:05Z"),
-        ShippingNote(noteId = 2, branchName = "거래처 B", itemKindsNumber = 3, totalQty = 110, status = "DELAYED", completedAt = "2025-10-29T03:05Z")
+        ShippingNote(
+            noteId = 1,
+            shippingNo = "OUT-001",
+            branchName = "거래처 A",
+            itemKindsNumber = 2,
+            totalQty = 80,
+            status = "COMPLETED",
+            warehouseCode = "MAIN",
+            requestedAt = "2025-10-27T10:00:00",
+            expectedShipDate = "2025-10-29T10:00:00",
+            completedAt = "2025-10-28T02:05Z"
+        ),
+        ShippingNote(
+            noteId = 2,
+            shippingNo = "OUT-002",
+            branchName = "거래처 B",
+            itemKindsNumber = 3,
+            totalQty = 110,
+            status = "DELAYED",
+            warehouseCode = "SUB",
+            requestedAt = "2025-10-28T11:00:00",
+            expectedShipDate = "2025-10-30T11:00:00",
+            completedAt = "2025-10-29T03:05Z"
+        )
     )
     MaterialTheme {
-        ReleasingCompletedScreen(completedList = dummyList, onItemClick = {})
+        ReleasingCompletedScreen(completedList = dummyList, onItemClick = {}, onLoadMore = {}, isLoading = false, canLoadMore = false)
     }
 }

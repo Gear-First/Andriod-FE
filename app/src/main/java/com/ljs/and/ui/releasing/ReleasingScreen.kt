@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,21 +46,23 @@ fun ReleasingScreen(
     viewModel: ReleasingViewModel = viewModel(factory = ReleasingViewModelFactory())
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var selectedTabIndex by remember { mutableStateOf(0) }
+    var selectedTabIndex by rememberSaveable { mutableStateOf(0) }
     val tabs = listOf("출고 대기", "출고 완료")
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
     LaunchedEffect(key1 = Unit) {
-        viewModel.loadNotDoneShippingNotes()
-        viewModel.loadDoneShippingNotes()
+        viewModel.refreshAllLists()
     }
 
     LaunchedEffect(key1 = navController.currentBackStackEntry) {
-        navController.currentBackStackEntry?.savedStateHandle?.get<Int>("selectedTab")?.let {
-            selectedTabIndex = it
-            navController.currentBackStackEntry?.savedStateHandle?.remove<Int>("selectedTab")
+        navController.currentBackStackEntry?.savedStateHandle?.get<Boolean>("refreshDoneList")?.let {
+            if (it) {
+                viewModel.refreshAllLists()
+                selectedTabIndex = 1
+                navController.currentBackStackEntry?.savedStateHandle?.remove<Boolean>("refreshDoneList")
+            }
         }
     }
 
@@ -86,23 +90,31 @@ fun ReleasingScreen(
                 tabs = tabs,
                 onTabSelected = { selectedTabIndex = it }
             )
-            if (uiState.isLoading && (uiState.notDoneShippingNotes == null || uiState.doneShippingNotes == null)) {
+            if (uiState.isLoading && uiState.notDoneShippingList.isEmpty() && uiState.doneShippingList.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
                 when (selectedTabIndex) {
                     0 -> PendingScreen(
-                        pendingList = uiState.notDoneShippingNotes?.items ?: emptyList(),
+                        pendingList = uiState.notDoneShippingList,
                         onItemClick = { item ->
+                            viewModel.loadShippingNoteDetail(item.noteId)
                             navController.navigate(Screen.ReleasingPicking.createRoute(item.noteId, isReadOnly = false))
-                        }
+                        },
+                        onLoadMore = { viewModel.loadNotDoneShippingNotes() },
+                        isLoading = uiState.isLoading,
+                        canLoadMore = uiState.canLoadMoreNotDone
                     )
                     1 -> ReleasingCompletedScreen(
-                        completedList = uiState.doneShippingNotes?.items ?: emptyList(),
+                        completedList = uiState.doneShippingList,
                         onItemClick = { item ->
+                            viewModel.loadShippingNoteDetail(item.noteId)
                             navController.navigate(Screen.ReleasingPicking.createRoute(item.noteId, isReadOnly = true))
-                        }
+                        },
+                        onLoadMore = { viewModel.loadDoneShippingNotes() },
+                        isLoading = uiState.isLoading,
+                        canLoadMore = uiState.canLoadMoreDone
                     )
                 }
             }
@@ -174,37 +186,50 @@ fun ReleasingTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (I
     ) {
         tabs.forEachIndexed { index, title ->
             val isSelected = selectedTabIndex == index
-            if (isSelected) {
-                OutlinedButton(
-                    onClick = { onTabSelected(index) },
-                    shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, Color(0xFF007BFF)),
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                ) {
-                    Text(title, color = Color(0xFF007BFF), fontWeight = FontWeight.Bold)
-                }
-            } else {
-                Button(
-                    onClick = { onTabSelected(index) },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black
-                    ),
-                    border = BorderStroke(1.dp, Color.LightGray),
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                ) {
-                    Text(title)
-                }
+            val containerColor = if (isSelected) Color(0xFF007BFF) else Color.White
+            val contentColor = if (isSelected) Color.White else Color.Black
+            val border = if (isSelected) null else BorderStroke(1.dp, Color.LightGray)
+
+            Button(
+                onClick = { onTabSelected(index) },
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = containerColor,
+                    contentColor = contentColor
+                ),
+                border = border,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            ) {
+                Text(title, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
             }
         }
     }
 }
 
 @Composable
-fun PendingScreen(pendingList: List<ShippingNote>, onItemClick: (ShippingNote) -> Unit) {
-    if (pendingList.isEmpty()) {
+fun PendingScreen(
+    pendingList: List<ShippingNote>,
+    onItemClick: (ShippingNote) -> Unit,
+    onLoadMore: () -> Unit,
+    isLoading: Boolean,
+    canLoadMore: Boolean
+) {
+    val listState = rememberLazyListState()
+
+    val reachedBottom by remember {
+        derivedStateOf {
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            lastVisibleItem != null && lastVisibleItem.index == listState.layoutInfo.totalItemsCount - 1 && canLoadMore
+        }
+    }
+
+    LaunchedEffect(reachedBottom) {
+        if (reachedBottom && !isLoading) {
+            onLoadMore()
+        }
+    }
+
+    if (pendingList.isEmpty() && !isLoading) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -213,14 +238,22 @@ fun PendingScreen(pendingList: List<ShippingNote>, onItemClick: (ShippingNote) -
         }
     } else {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
         ) {
-            items(pendingList) { item ->
+            items(pendingList, key = { it.noteId }) { item ->
                 PendingCard(item = item, onStartPicking = { onItemClick(item) })
+            }
+            if (isLoading && pendingList.isNotEmpty()) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
             }
         }
     }
@@ -261,7 +294,7 @@ fun PendingCard(item: ShippingNote, onStartPicking: () -> Unit) {
                     fontSize = 12.sp
                 )
             }
-            Text("출고번호: ${item.noteId}", fontSize = 14.sp, color = Color.Gray)
+            Text("출고번호: ${item.shippingNo}", fontSize = 14.sp, color = Color.Gray)
             Text("품목 종류: ${item.itemKindsNumber}종", fontSize = 14.sp, color = Color.Gray)
             Text("총 수량: ${item.totalQty}개", fontSize = 14.sp, color = Color.Gray)
             

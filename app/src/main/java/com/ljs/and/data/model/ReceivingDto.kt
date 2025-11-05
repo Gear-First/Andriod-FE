@@ -77,6 +77,8 @@ data class ReceivingNote(
     val warehouseCode: String,
     @SerializedName("requestedAt")
     val requestedAt: String,
+    @SerializedName("expectedReceiveDate")
+    val expectedReceiveDate: String,
     @SerializedName("completedAt")
     val completedAt: String?
 )
@@ -96,7 +98,7 @@ data class ReceivingNoteDetail(
     @SerializedName("completedAt")
     val completedAt: String?,
     @SerializedName("receivingNo")
-    val receivingNo: String?,
+    val receivingNo: String,
     @SerializedName("warehouseCode")
     val warehouseCode: String,
     @SerializedName("requestedAt")

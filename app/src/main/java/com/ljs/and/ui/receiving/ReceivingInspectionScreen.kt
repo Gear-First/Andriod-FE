@@ -298,7 +298,7 @@ fun InspectionItemCard(
             ) {
                 Text(noteDetail.supplierName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text("${line.product.name} / ${line.product.lot}", fontSize = 14.sp)
-                Text("입고 번호: ${noteDetail.receivingNo ?: noteDetail.noteId}", fontSize = 12.sp, color = Color.Gray)
+                Text("입고 번호: ${noteDetail.receivingNo}", fontSize = 12.sp, color = Color.Gray)
                 Text("요청 수량: ${line.orderedQty}", fontSize = 12.sp, color = Color.Gray)
                 Text("검수 수량: ${line.inspectedQty}", fontSize = 12.sp, color = Color.Gray)
             }

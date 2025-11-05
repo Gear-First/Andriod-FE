@@ -74,11 +74,11 @@ sealed class Screen(val route: String) {
     }
     object More : Screen("more")
     object InventoryRequestForm : Screen("inventory_request")
-    object BarcodeScan : Screen("barcodescan/{flowType}?noteId={noteId}&lineId={lineId}&currentQty={currentQty}") {
-        fun createRoute(flowType: String, noteId: Long = -1L, lineId: Long = -1L, currentQty: Int = 0) = "barcodescan/$flowType?noteId=$noteId&lineId=$lineId&currentQty=$currentQty"
+    object BarcodeScan : Screen("barcodescan/{flowType}?noteId={noteId}&lineId={lineId}&currentQty={currentQty}&orderedQty={orderedQty}&lineRemark={lineRemark}") {
+        fun createRoute(flowType: String, noteId: Long = -1L, lineId: Long = -1L, currentQty: Int = 0, orderedQty: Int = 0, lineRemark: String? = null) = "barcodescan/$flowType?noteId=$noteId&lineId=$lineId&currentQty=$currentQty&orderedQty=$orderedQty&lineRemark=$lineRemark"
     }
-    object ManualInput : Screen("manual_input/{flowType}?noteId={noteId}&lineId={lineId}&currentQty={currentQty}") {
-        fun createRoute(flowType: String, noteId: Long, lineId: Long, currentQty: Int) = "manual_input/$flowType?noteId=$noteId&lineId=$lineId&currentQty=$currentQty"
+    object ManualInput : Screen("manual_input/{flowType}?noteId={noteId}&lineId={lineId}&currentQty={currentQty}&orderedQty={orderedQty}&lineRemark={lineRemark}") {
+        fun createRoute(flowType: String, noteId: Long, lineId: Long, currentQty: Int, orderedQty: Int, lineRemark: String?) = "manual_input/$flowType?noteId=$noteId&lineId=$lineId&currentQty=$currentQty&orderedQty=$orderedQty&lineRemark=$lineRemark"
     }
     object ReceivingInspection : Screen("receiving_inspection/{isReadOnly}") {
         fun createRoute(isReadOnly: Boolean) = "receiving_inspection/$isReadOnly"
@@ -230,7 +230,9 @@ private fun NavigationGraph(navController: NavHostController) {
                 navArgument("flowType") { type = NavType.StringType },
                 navArgument("noteId") { type = NavType.LongType; defaultValue = -1L },
                 navArgument("lineId") { type = NavType.LongType; defaultValue = -1L },
-                navArgument("currentQty") { type = NavType.IntType; defaultValue = 0 }
+                navArgument("currentQty") { type = NavType.IntType; defaultValue = 0 },
+                navArgument("orderedQty") { type = NavType.IntType; defaultValue = 0 },
+                navArgument("lineRemark") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
             BarcodeScanScreen(
@@ -238,7 +240,9 @@ private fun NavigationGraph(navController: NavHostController) {
                 flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving",
                 noteId = backStackEntry.arguments?.getLong("noteId") ?: -1L,
                 lineId = backStackEntry.arguments?.getLong("lineId") ?: -1L,
-                currentQty = backStackEntry.arguments?.getInt("currentQty") ?: 0
+                currentQty = backStackEntry.arguments?.getInt("currentQty") ?: 0,
+                orderedQty = backStackEntry.arguments?.getInt("orderedQty") ?: 0,
+                lineRemark = backStackEntry.arguments?.getString("lineRemark")
             )
         }
         composable(
@@ -247,18 +251,19 @@ private fun NavigationGraph(navController: NavHostController) {
                 navArgument("flowType") { type = NavType.StringType },
                 navArgument("noteId") { type = NavType.LongType; defaultValue = -1L },
                 navArgument("lineId") { type = NavType.LongType },
-                navArgument("currentQty") { type = NavType.IntType }
+                navArgument("currentQty") { type = NavType.IntType },
+                navArgument("orderedQty") { type = NavType.IntType },
+                navArgument("lineRemark") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
-            val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Receiving.route) }
-            val viewModel: ReceivingViewModel = viewModel(parentEntry, factory = ReceivingViewModelFactory())
             ManualInputScreen(
                 navController = navController,
                 flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving",
                 noteId = backStackEntry.arguments?.getLong("noteId") ?: -1L,
                 lineId = backStackEntry.arguments?.getLong("lineId") ?: -1L,
                 currentQty = backStackEntry.arguments?.getInt("currentQty") ?: 0,
-                viewModel = viewModel
+                orderedQty = backStackEntry.arguments?.getInt("orderedQty") ?: 0,
+                lineRemark = backStackEntry.arguments?.getString("lineRemark")
             )
         }
 

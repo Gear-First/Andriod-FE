@@ -35,12 +35,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.ljs.and.ui.Screen
 import com.ljs.and.ui.receiving.ReceivingViewModel
 import com.ljs.and.ui.receiving.ReceivingViewModelFactory
+import com.ljs.and.ui.releasing.ReleasingViewModel
+import com.ljs.and.ui.releasing.ReleasingViewModelFactory
 
 @SuppressLint("UnrememberedMutableState")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,52 +51,52 @@ import com.ljs.and.ui.receiving.ReceivingViewModelFactory
 fun ManualInputScreen(
     navController: NavController,
     flowType: String,
-    noteId: Long, 
+    noteId: Long,
     lineId: Long,
     currentQty: Int,
-    viewModel: ReceivingViewModel = viewModel(factory = ReceivingViewModelFactory())
+    orderedQty: Int,
+    lineRemark: String?
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val noteDetail = uiState.selectedReceivingNoteDetail
-    val line = noteDetail?.lines?.find { it.lineId == lineId }
+    val isReceiving = flowType == "receiving"
+
+    val releasingViewModel: ReleasingViewModel = viewModel(factory = ReleasingViewModelFactory())
+    val receivingViewModel: ReceivingViewModel = viewModel(factory = ReceivingViewModelFactory())
+
+    val releasingUiState by releasingViewModel.uiState.collectAsState()
+    val receivingUiState by receivingViewModel.uiState.collectAsState()
+
+    val (noteDetail, line, isLoading) = if (isReceiving) {
+        Triple(receivingUiState.selectedReceivingNoteDetail, receivingUiState.selectedReceivingNoteDetail?.lines?.find { it.lineId == lineId }, receivingUiState.isLoading)
+    } else {
+        Triple(releasingUiState.selectedShippingNoteDetail, releasingUiState.selectedShippingNoteDetail?.lines?.find { it.lineId == lineId }, releasingUiState.isLoading)
+    }
 
     LaunchedEffect(noteId) {
-        if (noteId != -1L && noteDetail?.noteId != noteId) {
-            viewModel.loadReceivingNoteDetail(noteId)
+        if (noteId != -1L) {
+            if (isReceiving) {
+                if (receivingUiState.selectedReceivingNoteDetail?.noteId != noteId) {
+                    receivingViewModel.loadReceivingNoteDetail(noteId)
+                }
+            } else {
+                if (releasingUiState.selectedShippingNoteDetail?.noteId != noteId) {
+                    releasingViewModel.loadShippingNoteDetail(noteId)
+                }
+            }
         }
     }
 
-    val isReceiving = flowType == "receiving"
     var quantity by remember { mutableStateOf(currentQty.toString()) }
-    var rejected by remember { mutableStateOf(false) }
-    var lineRemark by remember { mutableStateOf("") }
+    var rejected by remember { mutableStateOf(false) } // For receiving
+    var currentLineRemark by remember { mutableStateOf(lineRemark ?: "") }
 
     val title = if (isReceiving) "검수 수량 입력" else "피킹 수량 입력"
-    val quantityLabel = when {
-        isReceiving && rejected -> "불량 수량"
-        isReceiving -> "검수 수량"
-        else -> "피킹 수량"
-    }
-    val bottomButtonText = when {
-        isReceiving && rejected -> "재입고 신청"
-        isReceiving -> "검수 확인"
-        else -> "피킹 확인"
-    }
+    val quantityLabel = if (isReceiving) "검수 수량" else "피킹 수량"
 
-    val isFormValid by derivedStateOf {
-        val qty = quantity.toIntOrNull()
-        qty != null && (!rejected || (rejected && qty > 0))
-    }
+    val bottomButtonText = if (isReceiving) "검수 확인" else "피킹 확인"
+
+    val isFormValid by derivedStateOf { quantity.toIntOrNull() != null }
 
     val TAG = "ManualInputScreen"
-
-    LaunchedEffect(uiState.rejectionProcessCompleted) {
-        if (uiState.rejectionProcessCompleted) {
-            // ReceivingInspectionScreen으로 바로 돌아가도록 수정
-            navController.popBackStack(Screen.ReceivingInspection.route, inclusive = false)
-            viewModel.clearRejectionProcessEvent() 
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -115,31 +118,40 @@ fun ManualInputScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (uiState.isLoading && line == null) {
+            if (isLoading && line == null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
-                if (isReceiving && noteDetail != null && line != null) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            TitledTextField(label = "공급업체", value = noteDetail.supplierName, onValueChange = {}, readOnly = true)
-                            TitledTextField(label = "부품명", value = line.product.name ?: "", onValueChange = {}, readOnly = true)
-                            TitledTextField(label = "부품코드", value = line.product.serial ?: "", onValueChange = {}, readOnly = true)
-                            TitledTextField(label = "입고번호", value = noteDetail.receivingNo ?: "", onValueChange = {}, readOnly = true)
-                            TitledTextField(label = "요청수량", value = line.orderedQty.toString(), onValueChange = {}, readOnly = true)
+                        if (isReceiving) {
+                            val receivingNote = noteDetail as? com.ljs.and.data.model.ReceivingNoteDetail
+                            val receivingLine = line as? com.ljs.and.data.model.ReceivingLine
+                            TitledTextField(label = "공급업체", value = receivingNote?.supplierName ?: "", onValueChange = {}, readOnly = true)
+                            TitledTextField(label = "부품명", value = receivingLine?.product?.name ?: "", onValueChange = {}, readOnly = true)
+                            TitledTextField(label = "부품코드", value = receivingLine?.product?.serial ?: "", onValueChange = {}, readOnly = true)
+                            TitledTextField(label = "입고번호", value = receivingNote?.receivingNo ?: "", onValueChange = {}, readOnly = true)
+                            TitledTextField(label = "요청수량", value = receivingLine?.orderedQty.toString(), onValueChange = {}, readOnly = true)
+                        } else {
+                            val shippingNote = noteDetail as? com.ljs.and.data.model.ShippingNoteDetail
+                            val shippingLine = line as? com.ljs.and.data.model.ShippingLine
+                            TitledTextField(label = "거래처", value = shippingNote?.branchName ?: "", onValueChange = {}, readOnly = true)
+                            TitledTextField(label = "부품명", value = shippingLine?.product?.name ?: "", onValueChange = {}, readOnly = true)
+                            TitledTextField(label = "출고번호", value = shippingNote?.shippingNo ?: "", onValueChange = {}, readOnly = true)
+                            TitledTextField(label = "요청수량", value = shippingLine?.orderedQty.toString(), onValueChange = {}, readOnly = true)
                         }
                     }
-                    Spacer(Modifier.height(16.dp))
                 }
+                Spacer(Modifier.height(16.dp))
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -175,8 +187,8 @@ fun ManualInputScreen(
                                 Spacer(modifier = Modifier.height(16.dp))
                                 TitledTextField(
                                     label = "특이사항",
-                                    value = lineRemark,
-                                    onValueChange = { lineRemark = it }
+                                    value = currentLineRemark,
+                                    onValueChange = { currentLineRemark = it }
                                 )
                             }
                         }
@@ -189,28 +201,19 @@ fun ManualInputScreen(
                     onCancel = { navController.popBackStack() },
                     onComplete = {
                         try {
-                            if (isReceiving && rejected) {
-                                val rejectedQty = quantity.toIntOrNull()
-                                if (rejectedQty != null && rejectedQty > 0) {
-                                    viewModel.processRejectedItemAndReRequest(lineId, rejectedQty, lineRemark)
+                            val targetRoute = if (isReceiving) Screen.ReceivingInspection.route else Screen.ReleasingPicking.route
+                            navController.getBackStackEntry(targetRoute).savedStateHandle.let {
+                                val qty = quantity.toIntOrNull() ?: 0
+                                it["lineId"] = lineId
+                                if (isReceiving) {
+                                    it["inspectedQty"] = qty
+                                    it["rejected"] = rejected
+                                    it["lineRemark"] = if (rejected) currentLineRemark else null
                                 } else {
-                                    Log.e(TAG, "Invalid form for rejection")
+                                    it["pickedQty"] = qty
                                 }
-                            } else {
-                                val targetRoute = if (isReceiving) Screen.ReceivingInspection.route else Screen.ReleasingPicking.route
-                                navController.getBackStackEntry(targetRoute).savedStateHandle.let {
-                                    val qty = quantity.toIntOrNull() ?: 0
-                                    it["lineId"] = lineId
-                                    if (isReceiving) {
-                                        it["inspectedQty"] = qty
-                                        it["rejected"] = rejected
-                                        it["lineRemark"] = if (rejected) lineRemark else null
-                                    } else {
-                                        it["pickedQty"] = qty
-                                    }
-                                }
-                                navController.popBackStack(targetRoute, inclusive = false)
                             }
+                            navController.popBackStack(targetRoute, inclusive = false)
                         } catch (e: Exception) {
                             Log.e(TAG, "Error during onComplete", e)
                         }
@@ -326,7 +329,7 @@ fun ManualInputBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isComplet
 @Composable
 fun ManualInputScreenReceivingPreview() {
     MaterialTheme {
-        ManualInputScreen(navController = rememberNavController(), flowType = "receiving", noteId = -1L, lineId = 1L, currentQty = 90)
+        ManualInputScreen(navController = rememberNavController(), flowType = "receiving", noteId = -1L, lineId = 1L, currentQty = 90, orderedQty = 100, lineRemark = "")
     }
 }
 
@@ -334,6 +337,6 @@ fun ManualInputScreenReceivingPreview() {
 @Composable
 fun ManualInputScreenReleasingPreview() {
     MaterialTheme {
-        ManualInputScreen(navController = rememberNavController(), flowType = "releasing", noteId = -1L, lineId = 1L, currentQty = 90)
+        ManualInputScreen(navController = rememberNavController(), flowType = "releasing", noteId = -1L, lineId = 1L, currentQty = 90, orderedQty = 100, lineRemark = "")
     }
 }

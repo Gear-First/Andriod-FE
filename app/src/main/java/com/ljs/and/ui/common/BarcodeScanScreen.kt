@@ -27,9 +27,11 @@ import com.ljs.and.ui.Screen
 fun BarcodeScanScreen(
     navController: NavController, 
     flowType: String,
-    noteId: Long, // noteId 추가
+    noteId: Long, 
     lineId: Long,
-    currentQty: Int
+    currentQty: Int,
+    orderedQty: Int,
+    lineRemark: String?
 ) {
     val initialTabIndex = if (flowType == "releasing") 1 else 0
     var selectedTabIndex by remember { mutableStateOf(initialTabIndex) }
@@ -65,9 +67,11 @@ fun BarcodeScanScreen(
                 navController.navigate(
                     Screen.ManualInput.createRoute(
                         flowType = if (selectedTabIndex == 0) "receiving" else "releasing",
-                        noteId = noteId, // noteId 전달
+                        noteId = noteId, 
                         lineId = targetLineId, 
-                        currentQty = currentQty
+                        currentQty = currentQty,
+                        orderedQty = orderedQty,
+                        lineRemark = lineRemark
                     )
                 )
             },
@@ -168,6 +172,6 @@ fun ScanActionButtons(onCancel: () -> Unit, onManualInput: () -> Unit, modifier:
 @Composable
 fun BarcodeScanScreenPreview() {
     MaterialTheme {
-        BarcodeScanScreen(navController = rememberNavController(), flowType = "receiving", noteId = -1L, lineId = -1L, currentQty = 0)
+        BarcodeScanScreen(navController = rememberNavController(), flowType = "receiving", noteId = -1L, lineId = -1L, currentQty = 0, orderedQty = 0, lineRemark = null)
     }
 }

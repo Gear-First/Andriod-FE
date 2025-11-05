@@ -1,6 +1,8 @@
 package com.ljs.and.ui.receiving
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -45,6 +47,7 @@ class ReceivingViewModel(private val repository: ReceivingRepository) : ViewMode
 
     private val TAG = "ReceivingViewModel"
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun processRejectedItemAndReRequest(lineId: Long, rejectedQty: Int, remark: String?) {
         val noteDetail = _uiState.value.selectedReceivingNoteDetail
         val targetLine = noteDetail?.lines?.find { it.lineId == lineId }

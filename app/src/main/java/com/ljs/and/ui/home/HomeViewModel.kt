@@ -66,6 +66,14 @@ class HomeViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState(selectedDate = sdf.format(Date())))
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private val chartColors = listOf(
+        Color(0xFF0D47A1),
+        Color(0xFF1976D2),
+        Color(0xFF2196F3),
+        Color(0xFF64B5F6),
+        Color(0xFFBBDEFB)
+    )
+
     init {
         loadInitialData()
     }
@@ -78,7 +86,7 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.update { currentState ->
                 currentState.copy(
-                    inventoryItems = getSampleInventoryData(),
+//                    inventoryItems = getSampleInventoryData(), // Will be loaded from API
                     weeklyInOutData = getSampleWeeklyData(),
                     notifications = getSampleNotifications()
                 )
@@ -90,7 +98,7 @@ class HomeViewModel : ViewModel() {
     private fun loadStatusData() {
         viewModelScope.launch {
             try {
-                // Fetch all inventory items for low stock count
+                // Fetch all inventory items
                 val allInventoryItems = mutableListOf<InventoryOnHandItem>()
                 var inventoryPage = 0
                 var inventoryTotalPages = 1
@@ -102,7 +110,7 @@ class HomeViewModel : ViewModel() {
                         minQty = null,
                         maxQty = null,
                         page = inventoryPage,
-                        size = 100, // Adjust size as needed
+                        size = 100,
                         sort = null
                     )
                     if (inventoryResponse.success) {
@@ -138,11 +146,26 @@ class HomeViewModel : ViewModel() {
                     }
                 }
 
+                // Process data for UI
                 val lowStockCount = allInventoryItems.count { it.lowStock }
                 val requestCount = allPurchaseOrderItems.size
 
+                val top5Inventory = allInventoryItems
+                    .sortedByDescending { it.onHandQty }
+                    .take(5)
+                    .mapIndexed { index, item ->
+                        InventoryItemData(
+                            name = item.part.name,
+                            quantity = item.onHandQty,
+                            color = chartColors.getOrElse(index) { Color.Gray } // Use predefined colors
+                        )
+                    }
+
                 _uiState.update {
-                    it.copy(status = it.status.copy(lowStockCount = lowStockCount, requestCount = requestCount))
+                    it.copy(
+                        status = it.status.copy(lowStockCount = lowStockCount, requestCount = requestCount),
+                        inventoryItems = top5Inventory
+                    )
                 }
 
             } catch (e: Exception) {
@@ -186,7 +209,6 @@ class HomeViewModel : ViewModel() {
                         isTodaySelected = newDate == todayDate
                     )
                 }
-                // Update status counts for the selected date
                 updateStatusForDate(event.dateMillis)
             }
             is HomeEvent.ShowNotificationDialog -> _uiState.update { it.copy(isNotificationDialogVisible = true) }
@@ -197,17 +219,6 @@ class HomeViewModel : ViewModel() {
     }
 
     // --- Sample Data Providers ---
-
-    private fun getSampleInventoryData(): List<InventoryItemData> {
-        return listOf(
-            InventoryItemData("엔진오일", 17439, Color(0xFF0D47A1)),
-            InventoryItemData("브레이크패드", 9478, Color(0xFF1976D2)),
-            InventoryItemData("부동액", 18197, Color(0xFF2196F3)),
-            InventoryItemData("타이어", 12510, Color(0xFF64B5F6)),
-            InventoryItemData("필터", 14406, Color(0xFFBBDEFB))
-        )
-    }
-
     private fun getSampleWeeklyData(): List<InOutData> {
         return listOf(
             InOutData("S", 30f, 25f),

@@ -1,5 +1,7 @@
 package com.ljs.and.ui.inventory
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ModifierLocalBeyondBoundsLayout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -21,31 +24,31 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.ljs.and.data.model.BranchPurchaseOrderItem
 import com.ljs.and.ui.Screen
-//import com.ljs.and.data.InventoryRequest
-//import com.ljs.and.data.RequestStatus
 import com.ljs.and.ui.theme.AndTheme
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
+@RequiresApi(Build.VERSION_CODES.O)
+private fun formatRequestDateTime(dateTimeString: String?): String {
+    if (dateTimeString == null) return "N/A"
+    return try {
+        val offsetDateTime = OffsetDateTime.parse(dateTimeString)
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        offsetDateTime.format(formatter)
+    } catch (e: Exception) {
+        dateTimeString.substringBefore("T")
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun InventoryRequestScreen(
     navController: NavHostController,
     viewModel: InventoryViewModel = viewModel()
 ) {
-    var showCancelDialog by remember { mutableStateOf(false) }
-    var selectedRequest by remember { mutableStateOf<InventoryRequest?>(null) }
-
     val requestState by viewModel.requestState.collectAsState()
-
-    val filteredList = remember(requestState.selectedFilter, requestState.requestList) {
-        requestState.requestList.filter { request ->
-            !request.isCanceled && when (requestState.selectedFilter) {
-                "대기" -> request.status == RequestStatus.PENDING
-                "승인" -> request.status == RequestStatus.APPROVED
-//                "완료" -> request.status == RequestStatus.COMPLETED
-                else -> true // "전체"
-            }
-        }
-    }
 
     Scaffold(
         containerColor = Color(0xFFF5F5F7)
@@ -72,20 +75,14 @@ fun InventoryRequestScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("신청 리스트", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        RequestFilterDropdown(
-                            selectedOption = requestState.selectedFilter,
-                            onOptionSelected = { viewModel.updateRequestFilter(it) }
-                        )
+                         RequestFilterDropdown(
+                             selectedOption = requestState.selectedFilter,
+                             onOptionSelected = { viewModel.updateRequestFilter(it) }
+                         )
                     }
                 }
-                items(filteredList) { request ->
-                    InventoryRequestCard(
-                        request = request,
-                        onCancelClick = {
-                            selectedRequest = request
-                            showCancelDialog = true
-                        }
-                    )
+                items(requestState.requestList) { request ->
+                    InventoryRequestCard(request = request)
                 }
             }
 
@@ -102,34 +99,6 @@ fun InventoryRequestScreen(
             }
         }
     }
-
-    if (showCancelDialog) {
-        CancelRequestDialog(
-            onConfirm = {
-                selectedRequest?.let { viewModel.cancelRequest(it.id) }
-                showCancelDialog = false
-                selectedRequest = null
-            },
-            onDismiss = {
-                showCancelDialog = false
-                selectedRequest = null
-            }
-        )
-    }
-}
-
-@Composable
-fun CancelRequestDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("알림") },
-        text = { Text("취소되었습니다.") },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("확인")
-            }
-        }
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -172,68 +141,76 @@ internal fun RequestFilterDropdown(selectedOption: String, onOptionSelected: (St
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-internal fun InventoryRequestCard(request: InventoryRequest, onCancelClick: () -> Unit) {
+fun InventoryRequestCard(request: BranchPurchaseOrderItem, onClick: () -> Unit = {}) {
+    val item = request.items.firstOrNull()
+    val totalQuantity = request.items.sumOf { it.quantity }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = 120.dp) // Ensure minimum height for alignment
-                .padding(16.dp)
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Main text content
+            // 왼쪽 텍스트 정보
             Column(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(end = 80.dp), // Prevent text overlapping with buttons
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
-                    text = "${request.itemName} / ${request.itemCode}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("신청 수량: ${request.quantity}개", fontSize = 14.sp, color = Color.Gray)
-                Text("신청일자: ${request.requestDate}", fontSize = 14.sp, color = Color.Gray)
-                Text("신청자: ${request.requester}", fontSize = 14.sp, color = Color.Gray)
-            }
-
-            // Cancel button (top right)
-            if (request.status == RequestStatus.PENDING) {
-                Button(
-                    onClick = onCancelClick,
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                    modifier = Modifier
-                        .height(24.dp)
-                        .align(Alignment.TopEnd)
-                ) {
-                    Text("취소", color = Color.White, fontSize = 12.sp)
+                val title = when {
+                    request.items.size > 1 -> "${item?.partName} 외 ${request.items.size - 1}건"
+                    item != null -> "${item.partName} / ${item.partCode}"
+                    else -> "부품 정보 없음"
                 }
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("접수 번호: ${request.orderNumber}", fontSize = 14.sp)
+                Text("신청 수량: ${totalQuantity}개", fontSize = 12.sp, color = Color.Gray)
+                Text("신청 일자: ${formatRequestDateTime(request.requestDate)}", fontSize = 12.sp, color = Color.Gray)
             }
 
-            // Status button (bottom right)
-            StatusButton(
-                status = request.status,
-                modifier = Modifier.align(Alignment.BottomEnd)
-            )
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // 오른쪽 상태 버튼 (Badge 스타일)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .background(Color.Transparent, RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                }
+                StatusButton(
+                    status = request.status,
+//                    modifier = Modifier
+//                        .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
+//                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
         }
     }
 }
 
+
 @Composable
-fun StatusButton(status: RequestStatus, modifier: Modifier = Modifier) {
+fun StatusButton(status: String, modifier: Modifier = Modifier) {
     val (text, color) = when (status) {
-        RequestStatus.PENDING -> "대기" to Color.Red
-        RequestStatus.APPROVED -> "승인" to Color(0xFF007BFF)
-//        RequestStatus.COMPLETED -> "완료" to Color.Gray
+        "PENDING" -> "대기" to Color.Red
+        "APPROVED" -> "승인" to Color(0xFF007BFF)
+        "COMPLETED" -> "완료" to Color.Gray
+        else -> status to Color.Gray
     }
 
     OutlinedButton(
@@ -248,6 +225,7 @@ fun StatusButton(status: RequestStatus, modifier: Modifier = Modifier) {
 }
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
 fun InventoryRequestScreenPreview() {

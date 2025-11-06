@@ -1,9 +1,7 @@
 package com.ljs.and.ui.inventory
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -24,8 +22,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.ljs.and.ui.Screen
-import java.text.SimpleDateFormat
-import java.util.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,22 +30,43 @@ fun InventoryRequestFormScreen(
     navController: NavHostController,
     viewModel: InventoryViewModel = viewModel()
 ) {
-    var partName by remember { mutableStateOf("엔진 오일 필터") }
-    var partCode by remember { mutableStateOf("EOF-001") }
-    var requestQuantity by remember { mutableStateOf("10") }
-    val reasonOptions = listOf("불량", "부족")
-    var selectedReason by remember { mutableStateOf(reasonOptions[0]) }
-    var requester by remember { mutableStateOf("김신청") }
-    val requestDate by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())) }
-    var notes by remember { mutableStateOf("") }
+    var partName by remember { mutableStateOf("") }
+    var partCode by remember { mutableStateOf("") }
+    var requestQuantity by remember { mutableStateOf("") }
+
+    val creationState by viewModel.purchaseOrderCreationState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val isFormValid by remember {
         derivedStateOf {
-            partName.isNotBlank() && partCode.isNotBlank() && requestQuantity.isNotBlank() && requester.isNotBlank()
+            partName.isNotBlank() &&
+            partCode.isNotBlank() &&
+            (requestQuantity.toIntOrNull() ?: 0) > 0
+        }
+    }
+
+    LaunchedEffect(creationState) {
+        if (creationState.isSuccess) {
+            scope.launch {
+                snackbarHostState.showSnackbar("재고 요청이 완료되었습니다.")
+            }
+            navController.navigate(Screen.InventoryHome.createRoute(filter = "재고신청")) {
+                popUpTo(Screen.InventoryRequestForm.route) { inclusive = true }
+                launchSingleTop = true
+            }
+            viewModel.resetPurchaseOrderCreationState()
+        }
+        creationState.error?.let {
+            scope.launch {
+                snackbarHostState.showSnackbar("오류: $it")
+            }
+            viewModel.resetPurchaseOrderCreationState()
         }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("재고 신청", fontWeight = FontWeight.Bold) },
@@ -62,80 +80,56 @@ fun InventoryRequestFormScreen(
         },
         containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = innerPadding.calculateTopPadding() - 15.dp,
-                    bottom = innerPadding.calculateBottomPadding()
-                )
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = innerPadding.calculateTopPadding() - 15.dp,
+                        bottom = innerPadding.calculateBottomPadding()
+                    )
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    TitledTextField(label = "부품명", value = partName, onValueChange = { partName = it })
-                    Spacer(modifier = Modifier.height(16.dp))
-                    TitledTextField(label = "부품코드", value = partCode, onValueChange = { partCode = it })
-                    Spacer(modifier = Modifier.height(16.dp))
-                    TitledTextField(label = "신청 수량", value = requestQuantity, onValueChange = { requestQuantity = it }, keyboardType = KeyboardType.Number)
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text("신청 사유", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
-                    Row {
-                        reasonOptions.forEach { reason ->
-                            Row(
-                                modifier = Modifier
-                                    .selectable(
-                                        selected = (reason == selectedReason),
-                                        onClick = { selectedReason = reason }
-                                    )
-                                    .padding(end = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = (reason == selectedReason),
-                                    onClick = { selectedReason = reason },
-                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF007BFF))
-                                )
-                                Text(reason)
-                            }
-                        }
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        TitledTextField(label = "부품명", value = partName, onValueChange = { partName = it })
+                        Spacer(modifier = Modifier.height(16.dp))
+                        TitledTextField(label = "부품코드", value = partCode, onValueChange = { partCode = it })
+                        Spacer(modifier = Modifier.height(16.dp))
+                        TitledTextField(label = "신청 수량", value = requestQuantity, onValueChange = { requestQuantity = it }, keyboardType = KeyboardType.Number)
                     }
-                    Spacer(modifier = Modifier.height(24.dp))
-                    TitledTextField(label = "신청자", value = requester, onValueChange = { requester = it })
-                    Spacer(modifier = Modifier.height(16.dp))
-                    TitledTextField(label = "신청일자", value = requestDate, onValueChange = {}, readOnly = true)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    TitledTextField(label = "비고", value = notes, onValueChange = { notes = it }, singleLine = false, modifier = Modifier.height(100.dp))
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        val quantity = requestQuantity.toIntOrNull()
+                        if (isFormValid && quantity != null) {
+                            viewModel.createPurchaseOrder(
+                                partName = partName,
+                                partCode = partCode,
+                                quantity = quantity
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF)),
+                    enabled = isFormValid && !creationState.isLoading
+                ) {
+                    Text("신청하기", color = Color.White, fontSize = 16.sp)
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    viewModel.addInventoryRequest(
-                        partName = partName,
-                        partCode = partCode,
-                        quantity = requestQuantity.toIntOrNull() ?: 0,
-                        reason = selectedReason,
-                        requester = requester
-                    )
-                    navController.navigate(Screen.Inventory.createRoute("재고신청")) {
-                        popUpTo(Screen.Home.route)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF)),
-                enabled = isFormValid
-            ) {
-                Text("신청하기", color = Color.White, fontSize = 16.sp)
+
+            if (creationState.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
         }
     }

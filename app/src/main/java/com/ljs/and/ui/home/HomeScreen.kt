@@ -1,3 +1,4 @@
+
 package com.ljs.and.ui.home
 
 import androidx.compose.foundation.clickable
@@ -16,24 +17,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DonutLarge
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.DonutSmall
-import androidx.compose.material.icons.filled.DonutLarge
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.PieChartOutline
-import androidx.compose.material.icons.filled.DataUsage
-import androidx.compose.material.icons.filled.ShowChart
-import androidx.compose.material.icons.filled.InsertChart
-import androidx.compose.material.icons.filled.InsertChartOutlined
-import androidx.compose.material.icons.filled.StackedBarChart
-import androidx.compose.material.icons.filled.StackedBarChart
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -207,13 +196,13 @@ fun StatusCards(navController: NavController, status: StatusData, isTodaySelecte
                 title = "부족 재고 품목",
                 count = "${status.lowStockCount}개",
                 modifier = Modifier.weight(1f),
-                onClick = { navController.navigate(Screen.Inventory.createRoute(filter = "부족")) }
+                onClick = { navController.navigate(Screen.InventoryHome.createRoute(filter = "부족")) }
             )
             StatusCard(
                 title = "재고 신청 리스트",
                 count = "${status.requestCount}개",
                 modifier = Modifier.weight(1f),
-                onClick = { navController.navigate(Screen.Inventory.createRoute(filter = "재고신청")) }
+                onClick = { navController.navigate(Screen.InventoryHome.createRoute(filter = "재고신청")) }
             )
         }
     }

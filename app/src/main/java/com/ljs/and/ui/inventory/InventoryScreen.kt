@@ -1,5 +1,7 @@
 package com.ljs.and.ui.inventory
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,15 +48,31 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.ljs.and.data.model.InventoryOnHandItem
 import com.ljs.and.ui.Screen
 import com.ljs.and.ui.theme.AndTheme
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
+@RequiresApi(Build.VERSION_CODES.O)
+private fun formatDateTime(dateTimeString: String?): String {
+    if (dateTimeString == null) return "N/A"
+    return try {
+        val offsetDateTime = OffsetDateTime.parse(dateTimeString)
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        offsetDateTime.format(formatter)
+    } catch (e: Exception) {
+        dateTimeString.substringBefore("T")
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InventoryScreen(
     navController: NavHostController,
     filter: String?,
-    viewModel: InventoryViewModel = viewModel()
+    viewModel: InventoryViewModel
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("재고 조회", "재고 신청")
@@ -106,9 +124,9 @@ fun InventoryScreen(
                     inventoryState = inventoryState,
                     onFilterChange = { viewModel.updateInventoryFilter(it) },
                     onItemClick = { /* navController.navigate(...) */ },
-                    onPageChange = { viewModel.goToPage(it) },
-                    onNextPage = { viewModel.goToNextPage() },
-                    onPreviousPage = { viewModel.goToPreviousPage() }
+                    onPageChange = { viewModel.loadInventory(it - 1) },
+                    onNextPage = { viewModel.loadInventory(inventoryState.currentPage) },
+                    onPreviousPage = { viewModel.loadInventory(inventoryState.currentPage - 2) }
                 )
                 1 -> InventoryRequestScreen(
                     navController = navController,
@@ -213,11 +231,12 @@ fun InventoryTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (I
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun InventoryStatusScreen(
     inventoryState: InventoryState,
     onFilterChange: (String) -> Unit,
-    onItemClick: (InventoryItem) -> Unit,
+    onItemClick: (InventoryOnHandItem) -> Unit,
     onPageChange: (Int) -> Unit,
     onNextPage: () -> Unit,
     onPreviousPage: () -> Unit
@@ -234,7 +253,6 @@ fun InventoryStatusScreen(
                 totalItems = inventoryState.totalItems,
                 totalQuantity = inventoryState.totalQuantity.toInt(),
                 lackingItems = inventoryState.lackingItems,
-                defectiveItems = inventoryState.defectiveItems
             )
         }
         item {
@@ -334,7 +352,7 @@ fun PaginationControls(
 
 
 @Composable
-fun InventorySummaryDashboard(totalItems: Int, totalQuantity: Int, lackingItems: Int, defectiveItems: Int) {
+fun InventorySummaryDashboard(totalItems: Int, totalQuantity: Int, lackingItems: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -348,7 +366,6 @@ fun InventorySummaryDashboard(totalItems: Int, totalQuantity: Int, lackingItems:
             Text("📦 총 품목: ${totalItems}종", fontSize = 16.sp)
             Text("📊 전체 수량: ${totalQuantity}개", fontSize = 16.sp)
             Text("⚠️ 부족 품목: ${lackingItems}개", fontSize = 16.sp)
-//            Text("🛠️ 불량 품목: ${defectiveItems}개", fontSize = 16.sp)
         }
     }
 }
@@ -392,8 +409,9 @@ fun FilterDropdown(selectedOption: String, onOptionSelected: (String) -> Unit) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun InventoryItemCard(item: InventoryItem, onClick: () -> Unit) {
+fun InventoryItemCard(item: InventoryOnHandItem, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -413,12 +431,11 @@ fun InventoryItemCard(item: InventoryItem, onClick: () -> Unit) {
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text("${item.name} / ${item.code}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(item.supplier, fontSize = 14.sp)
-                Text("현재/최소: ${item.currentStock}/${item.minimumStock}", fontSize = 12.sp, color = Color.Gray)
-                Text("위치: ${item.location}", fontSize = 12.sp, color = Color.Gray)
-                Text("최근 입출고: ${item.lastTransactionDate}", fontSize = 12.sp, color = Color.Gray)
-                Text("담당자: ${item.manager ?: ""}", fontSize = 12.sp, color = Color.Gray)
+                Text("${item.part.name} / ${item.part.code}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("창고: ${item.warehouseCode}", fontSize = 14.sp)
+                Text("현재 재고: ${item.onHandQty}", fontSize = 12.sp, color = Color.Gray)
+                Text("안전 재고: ${item.safetyStockQty}", fontSize = 12.sp, color = Color.Gray)
+                Text("최근 입출고: ${formatDateTime(item.lastUpdatedAt)}", fontSize = 12.sp, color = Color.Gray)
             }
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -427,37 +444,26 @@ fun InventoryItemCard(item: InventoryItem, onClick: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                item.imageUrl?.let {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current).data(it).crossfade(true).build(),
-                        contentDescription = item.name,
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } ?: Box(
+                Box(
                     modifier = Modifier
                         .size(80.dp)
-                        .background(Color.LightGray, RoundedCornerShape(8.dp)),
+                        .background(Color.Transparent, RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(imageVector = Icons.Outlined.Build, contentDescription = "No Image", modifier = Modifier.size(40.dp), tint = Color.Gray)
+//                    Icon(imageVector = Icons.Outlined.Build, contentDescription = "Image", modifier = Modifier.size(40.dp), tint = Color.Gray)
                 }
-                StatusBadge(status = item.status)
+                StatusBadge(isLowStock = item.lowStock)
             }
         }
     }
 }
 
 @Composable
-fun StatusBadge(status: ItemStatus) {
-    val (text, color) = when (status) {
-        ItemStatus.NORMAL, ItemStatus.COMPLETED -> "정상" to Color(0xFF28A745)
-        ItemStatus.LOW_STOCK -> "부족" to Color(0xFFFFC107)
-//        ItemStatus.SOLD_OUT -> "소진" to Color(0xFFDC3545)
-//        ItemStatus.DEFECTIVE -> "불량" to Color(0xFF6C757D)
-        else -> status.displayName to Color.Gray
+fun StatusBadge(isLowStock: Boolean) {
+    val (text, color) = if (isLowStock) {
+        "부족" to Color(0xFFFFC107)
+    } else {
+        "정상" to Color(0xFF28A745)
     }
 
     OutlinedButton(
@@ -473,10 +479,11 @@ fun StatusBadge(status: ItemStatus) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
 fun InventoryScreenPreview() {
     AndTheme {
-        InventoryScreen(navController = rememberNavController(), filter = null)
+        InventoryScreen(navController = rememberNavController(), filter = null, viewModel = viewModel())
     }
 }

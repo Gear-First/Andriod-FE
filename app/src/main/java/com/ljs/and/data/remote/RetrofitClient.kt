@@ -7,17 +7,26 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
-    private const val BASE_URL = "http://34.120.215.23/warehouse/"
+    private const val WAREHOUSE_BASE_URL = "http://34.120.215.23/warehouse/"
+    private const val ORDER_BASE_URL = "http://34.120.215.23/order/"
 
     private val client = OkHttpClient.Builder()
         .build()
 
-    private val retrofit = Retrofit.Builder()
-        .baseUrl(BASE_URL)
+    private val warehouseRetrofit = Retrofit.Builder()
+        .baseUrl(WAREHOUSE_BASE_URL)
         .client(client)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
-    val receivingApiService: ReceivingApiService = retrofit.create(ReceivingApiService::class.java)
-    val releasingApiService: ReleasingApiService = retrofit.create(ReleasingApiService::class.java)
+    private val orderRetrofit = Retrofit.Builder()
+        .baseUrl(ORDER_BASE_URL)
+        .client(client)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    val receivingApiService: ReceivingApiService = warehouseRetrofit.create(ReceivingApiService::class.java)
+    val releasingApiService: ReleasingApiService = warehouseRetrofit.create(ReleasingApiService::class.java)
+    val inventoryApiService: InventoryApiService = warehouseRetrofit.create(InventoryApiService::class.java)
+    val purchaseOrderApiService: PurchaseOrderApiService = orderRetrofit.create(PurchaseOrderApiService::class.java)
 }

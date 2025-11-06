@@ -46,6 +46,7 @@ import com.ljs.and.ui.common.ManualInputScreen
 import com.ljs.and.ui.home.HomeScreen
 import com.ljs.and.ui.inventory.InventoryRequestFormScreen
 import com.ljs.and.ui.inventory.InventoryScreen
+import com.ljs.and.ui.inventory.InventoryViewModel
 import com.ljs.and.ui.login.LoginScreen
 import com.ljs.and.ui.login.SplashScreen
 import com.ljs.and.ui.more.MoreScreen
@@ -67,9 +68,10 @@ sealed class Screen(val route: String) {
     object ReceivingHome: Screen("receiving_home")
     object Releasing : Screen("releasing")
     object ReleasingHome : Screen("releasing_home")
-    object Inventory : Screen("inventory?filter={filter}") {
+    object Inventory : Screen("inventory")
+    object InventoryHome : Screen("inventory_home?filter={filter}") {
         fun createRoute(filter: String? = null): String {
-            return if (filter != null) "inventory?filter=$filter" else "inventory"
+            return if (filter != null) "inventory_home?filter=$filter" else "inventory_home"
         }
     }
     object More : Screen("more")
@@ -212,17 +214,26 @@ private fun NavigationGraph(navController: NavHostController) {
             }
         }
 
-        composable(
-            route = Screen.Inventory.route,
-            arguments = listOf(navArgument("filter") { type = NavType.StringType; nullable = true })
-        ) { backStackEntry ->
-            InventoryScreen(
-                navController = navController,
-                filter = backStackEntry.arguments?.getString("filter")
-            )
+        navigation(startDestination = Screen.InventoryHome.route, route = Screen.Inventory.route) {
+            composable(
+                route = Screen.InventoryHome.route,
+                arguments = listOf(navArgument("filter") { type = NavType.StringType; nullable = true })
+            ) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Inventory.route) }
+                val viewModel: InventoryViewModel = viewModel(parentEntry)
+                InventoryScreen(
+                    navController = navController,
+                    filter = backStackEntry.arguments?.getString("filter"),
+                    viewModel = viewModel
+                )
+            }
+            composable(Screen.InventoryRequestForm.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Inventory.route) }
+                val viewModel: InventoryViewModel = viewModel(parentEntry)
+                InventoryRequestFormScreen(navController = navController, viewModel = viewModel)
+            }
         }
         composable(Screen.More.route) { MoreScreen(navController = navController) }
-        composable(Screen.InventoryRequestForm.route) { InventoryRequestFormScreen(navController = navController) }
 
         composable(
             route = Screen.BarcodeScan.route,

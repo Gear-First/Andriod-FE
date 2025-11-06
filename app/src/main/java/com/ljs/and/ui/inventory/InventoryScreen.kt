@@ -82,6 +82,12 @@ fun InventoryScreen(
 
     val inventoryState by viewModel.inventoryState.collectAsState()
 
+    // Refresh data when the screen is first composed or recomposed
+    LaunchedEffect(Unit) {
+        viewModel.loadInventory(forceRefresh = true)
+        viewModel.loadPurchaseOrders(forceRefresh = true)
+    }
+
     LaunchedEffect(filter) {
         filter?.let {
             if (it == "재고신청") {

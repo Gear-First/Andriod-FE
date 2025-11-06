@@ -140,29 +140,39 @@ class InventoryViewModel : ViewModel() {
     fun loadPurchaseOrders(page: Int = 0, forceRefresh: Boolean = false) {
         viewModelScope.launch {
             try {
-                val response = repository.getBranchPurchaseOrders(
-                    branchCode = "seoul",
-                    engineerId = 1111, // Get from logged in user
-                    startDate = null,
-                    endDate = null,
-                    page = page,
-                    size = 10, // Keep pagination size for this screen
-                    forceRefresh = forceRefresh
-                )
-                if (response.success) {
-                    originalRequestList = response.data?.content ?: emptyList()
-                    val currentFilter = _requestState.value.selectedFilter
-                    val filteredList = when (currentFilter) {
-                        "대기" -> originalRequestList.filter { it.status == "PENDING" }
-                        "승인" -> originalRequestList.filter { it.status == "APPROVED" }
-                        else -> originalRequestList
+                val allItems = mutableListOf<BranchPurchaseOrderItem>()
+                var currentPage = 0
+                var totalPages = 1
+                while (currentPage < totalPages) {
+                    val response = repository.getBranchPurchaseOrders(
+                        branchCode = "seoul",
+                        engineerId = 1111, // Get from logged in user
+                        startDate = null,
+                        endDate = null,
+                        page = currentPage,
+                        size = 100, // Adjust size as needed
+                        forceRefresh = forceRefresh
+                    )
+                    if (response.success) {
+                        response.data?.content?.let { allItems.addAll(it) }
+                        totalPages = response.data?.totalPages ?: 1
+                        currentPage++
+                    } else {
+                        break // Exit on failure
                     }
-                    _requestState.update {
-                        it.copy(requestList = filteredList, selectedFilter = currentFilter)
-                    }
-                } else {
-                    // Handle error
                 }
+
+                originalRequestList = allItems
+                val currentFilter = _requestState.value.selectedFilter
+                val filteredList = when (currentFilter) {
+                    "대기" -> originalRequestList.filter { it.status == "PENDING" }
+                    "승인" -> originalRequestList.filter { it.status == "APPROVED" }
+                    else -> originalRequestList
+                }
+                _requestState.update {
+                    it.copy(requestList = filteredList, selectedFilter = currentFilter)
+                }
+
             } catch (e: Exception) {
                 // Handle exception
             }

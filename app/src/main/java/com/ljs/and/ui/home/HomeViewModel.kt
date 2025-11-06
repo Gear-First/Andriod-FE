@@ -3,6 +3,9 @@ package com.ljs.and.ui.home
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ljs.and.data.model.BranchPurchaseOrderItem
+import com.ljs.and.data.model.InventoryOnHandItem
+import com.ljs.and.data.repository.InventoryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -56,6 +59,8 @@ enum class ChartType {
 
 class HomeViewModel : ViewModel() {
 
+    private val repository = InventoryRepository
+
     private val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
 
     private val _uiState = MutableStateFlow(HomeUiState(selectedDate = sdf.format(Date())))
@@ -65,19 +70,87 @@ class HomeViewModel : ViewModel() {
         loadInitialData()
     }
 
+    fun refreshData() {
+        loadStatusData()
+    }
+
     private fun loadInitialData() {
         viewModelScope.launch {
-            // Simulate loading data
             _uiState.update { currentState ->
                 currentState.copy(
-                    status = StatusData(inboundCount = 12, outboundCount = 8, lowStockCount = 3, requestCount = 5),
                     inventoryItems = getSampleInventoryData(),
                     weeklyInOutData = getSampleWeeklyData(),
                     notifications = getSampleNotifications()
                 )
             }
+            loadStatusData()
         }
     }
+
+    private fun loadStatusData() {
+        viewModelScope.launch {
+            try {
+                // Fetch all inventory items for low stock count
+                val allInventoryItems = mutableListOf<InventoryOnHandItem>()
+                var inventoryPage = 0
+                var inventoryTotalPages = 1
+                while (inventoryPage < inventoryTotalPages) {
+                    val inventoryResponse = repository.getInventoryOnHand(
+                        warehouseCode = "서울",
+                        partKeyword = null,
+                        supplierName = null,
+                        minQty = null,
+                        maxQty = null,
+                        page = inventoryPage,
+                        size = 100, // Adjust size as needed
+                        sort = null
+                    )
+                    if (inventoryResponse.success) {
+                        inventoryResponse.data?.items?.let { allInventoryItems.addAll(it) }
+                        inventoryTotalPages = inventoryResponse.data?.let {
+                            if (it.size == 0) 1 else kotlin.math.ceil(it.total.toDouble() / it.size).toInt()
+                        } ?: 1
+                        inventoryPage++
+                    } else {
+                        break // Exit loop on failure
+                    }
+                }
+
+                // Fetch all purchase orders for request count
+                val allPurchaseOrderItems = mutableListOf<BranchPurchaseOrderItem>()
+                var requestPage = 0
+                var requestTotalPages = 1
+                while (requestPage < requestTotalPages) {
+                    val requestResponse = repository.getBranchPurchaseOrders(
+                        branchCode = "seoul",
+                        engineerId = 1111,
+                        startDate = null,
+                        endDate = null,
+                        page = requestPage,
+                        size = 100
+                    )
+                    if (requestResponse.success) {
+                        requestResponse.data?.content?.let { allPurchaseOrderItems.addAll(it) }
+                        requestTotalPages = requestResponse.data?.totalPages ?: 1
+                        requestPage++
+                    } else {
+                        break // Exit loop on failure
+                    }
+                }
+
+                val lowStockCount = allInventoryItems.count { it.lowStock }
+                val requestCount = allPurchaseOrderItems.size
+
+                _uiState.update {
+                    it.copy(status = it.status.copy(lowStockCount = lowStockCount, requestCount = requestCount))
+                }
+
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
 
     private fun updateStatusForDate(dateMillis: Long) {
         val selectedDateStr = sdf.format(Date(dateMillis))
@@ -85,7 +158,7 @@ class HomeViewModel : ViewModel() {
 
         val newStatus = if (selectedDateStr == todayStr) {
             // Restore original counts for today
-            StatusData(inboundCount = 12, outboundCount = 8, lowStockCount = 3, requestCount = 5)
+            StatusData(inboundCount = 12, outboundCount = 8, lowStockCount = _uiState.value.status.lowStockCount, requestCount = _uiState.value.status.requestCount)
         } else {
             // Generate random data for other dates to simulate fetching new data
             StatusData(

@@ -138,7 +138,7 @@ fun ManualInputScreen(
                             val receivingLine = line as? com.ljs.and.data.model.ReceivingLine
                             TitledTextField(label = "공급업체", value = receivingNote?.supplierName ?: "", onValueChange = {}, readOnly = true)
                             TitledTextField(label = "부품명", value = receivingLine?.product?.name ?: "", onValueChange = {}, readOnly = true)
-                            TitledTextField(label = "부품코드", value = receivingLine?.product?.serial ?: "", onValueChange = {}, readOnly = true)
+                            TitledTextField(label = "부품코드", value = receivingLine?.product?.lot ?: "", onValueChange = {}, readOnly = true)
                             TitledTextField(label = "입고번호", value = receivingNote?.receivingNo ?: "", onValueChange = {}, readOnly = true)
                             TitledTextField(label = "요청수량", value = receivingLine?.orderedQty.toString(), onValueChange = {}, readOnly = true)
                         } else {

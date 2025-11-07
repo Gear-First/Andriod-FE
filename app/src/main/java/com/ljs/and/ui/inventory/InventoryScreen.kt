@@ -129,7 +129,17 @@ fun InventoryScreen(
                 0 -> InventoryStatusScreen(
                     inventoryState = inventoryState,
                     onFilterChange = { viewModel.updateInventoryFilter(it) },
-                    onItemClick = { /* navController.navigate(...) */ },
+                    onItemClick = { item ->
+                        if (item.lowStock) {
+                            navController.navigate(
+                                Screen.InventoryRequestForm.createRoute(
+                                    partName = item.part.name,
+                                    partCode = item.part.code,
+                                    safetyStockQty = item.safetyStockQty
+                                )
+                            )
+                        }
+                    },
                     onPageChange = { viewModel.loadInventory(it - 1) },
                     onNextPage = { viewModel.loadInventory(inventoryState.currentPage) },
                     onPreviousPage = { viewModel.loadInventory(inventoryState.currentPage - 2) }

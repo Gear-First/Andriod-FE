@@ -28,10 +28,14 @@ import kotlinx.coroutines.launch
 @Composable
 fun InventoryRequestFormScreen(
     navController: NavHostController,
-    viewModel: InventoryViewModel = viewModel()
+    viewModel: InventoryViewModel = viewModel(),
+    partName: String?,
+    partCode: String?,
+    safetyStockQty: Int?
 ) {
-    var partName by remember { mutableStateOf("") }
-    var partCode by remember { mutableStateOf("") }
+    var partNameState by remember { mutableStateOf(partName ?: "") }
+    var partCodeState by remember { mutableStateOf(partCode ?: "") }
+    var safetyStockQtyState by remember { mutableStateOf(safetyStockQty?.toString() ?: "") }
     var requestQuantity by remember { mutableStateOf("") }
 
     val creationState by viewModel.purchaseOrderCreationState.collectAsState()
@@ -40,8 +44,8 @@ fun InventoryRequestFormScreen(
 
     val isFormValid by remember {
         derivedStateOf {
-            partName.isNotBlank() &&
-            partCode.isNotBlank() &&
+            partNameState.isNotBlank() &&
+            partCodeState.isNotBlank() &&
             (requestQuantity.toIntOrNull() ?: 0) > 0
         }
     }
@@ -98,9 +102,11 @@ fun InventoryRequestFormScreen(
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        TitledTextField(label = "부품명", value = partName, onValueChange = { partName = it })
+                        TitledTextField(label = "부품명", value = partNameState, onValueChange = { partNameState = it })
                         Spacer(modifier = Modifier.height(16.dp))
-                        TitledTextField(label = "부품코드", value = partCode, onValueChange = { partCode = it })
+                        TitledTextField(label = "부품코드", value = partCodeState, onValueChange = { partCodeState = it })
+                        Spacer(modifier = Modifier.height(16.dp))
+                        TitledTextField(label = "안전재고", value = safetyStockQtyState, onValueChange = { safetyStockQtyState = it }, readOnly = true)
                         Spacer(modifier = Modifier.height(16.dp))
                         TitledTextField(label = "신청 수량", value = requestQuantity, onValueChange = { requestQuantity = it }, keyboardType = KeyboardType.Number)
                     }
@@ -111,8 +117,8 @@ fun InventoryRequestFormScreen(
                         val quantity = requestQuantity.toIntOrNull()
                         if (isFormValid && quantity != null) {
                             viewModel.createPurchaseOrder(
-                                partName = partName,
-                                partCode = partCode,
+                                partName = partNameState,
+                                partCode = partCodeState,
                                 quantity = quantity
                             )
                         }
@@ -177,6 +183,6 @@ fun TitledTextField(
 @Composable
 fun InventoryRequestFormScreenPreview() {
     MaterialTheme {
-        InventoryRequestFormScreen(navController = rememberNavController())
+        InventoryRequestFormScreen(navController = rememberNavController(), partName = "Part Name", partCode = "Part Code", safetyStockQty = 10)
     }
 }

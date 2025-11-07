@@ -75,7 +75,11 @@ sealed class Screen(val route: String) {
         }
     }
     object More : Screen("more")
-    object InventoryRequestForm : Screen("inventory_request")
+    object InventoryRequestForm : Screen("inventory_request?partName={partName}&partCode={partCode}&safetyStockQty={safetyStockQty}") {
+        fun createRoute(partName: String? = null, partCode: String? = null, safetyStockQty: Int = 0): String {
+            return "inventory_request?partName=${partName.orEmpty()}&partCode=${partCode.orEmpty()}&safetyStockQty=$safetyStockQty"
+        }
+    }
     object BarcodeScan : Screen("barcodescan/{flowType}?noteId={noteId}&lineId={lineId}&currentQty={currentQty}&orderedQty={orderedQty}&lineRemark={lineRemark}") {
         fun createRoute(flowType: String, noteId: Long = -1L, lineId: Long = -1L, currentQty: Int = 0, orderedQty: Int = 0, lineRemark: String? = null) = "barcodescan/$flowType?noteId=$noteId&lineId=$lineId&currentQty=$currentQty&orderedQty=$orderedQty&lineRemark=$lineRemark"
     }
@@ -227,10 +231,23 @@ private fun NavigationGraph(navController: NavHostController) {
                     viewModel = viewModel
                 )
             }
-            composable(Screen.InventoryRequestForm.route) { backStackEntry ->
+            composable(
+                route = Screen.InventoryRequestForm.route,
+                arguments = listOf(
+                    navArgument("partName") { type = NavType.StringType; nullable = true },
+                    navArgument("partCode") { type = NavType.StringType; nullable = true },
+                    navArgument("safetyStockQty") { type = NavType.IntType; defaultValue = 0 }
+                )
+            ) { backStackEntry ->
                 val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Inventory.route) }
                 val viewModel: InventoryViewModel = viewModel(parentEntry)
-                InventoryRequestFormScreen(navController = navController, viewModel = viewModel)
+                InventoryRequestFormScreen(
+                    navController = navController,
+                    viewModel = viewModel,
+                    partName = backStackEntry.arguments?.getString("partName"),
+                    partCode = backStackEntry.arguments?.getString("partCode"),
+                    safetyStockQty = backStackEntry.arguments?.getInt("safetyStockQty")
+                )
             }
         }
         composable(Screen.More.route) { MoreScreen(navController = navController) }

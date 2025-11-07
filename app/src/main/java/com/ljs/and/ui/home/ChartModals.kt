@@ -151,7 +151,7 @@ fun InventoryLegend(data: List<InventoryItemData>) {
 }
 
 @Composable
-fun WeeklyInOutChartModal(weeklyData: List<InOutData>, onDismiss: () -> Unit) {
+fun WeeklyInOutChartModal(weeklyData: List<InOutData>, dateRange: String, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(16.dp),
@@ -161,7 +161,7 @@ fun WeeklyInOutChartModal(weeklyData: List<InOutData>, onDismiss: () -> Unit) {
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("2025.10.01 - 2025.10.08", fontSize = 16.sp, color = Color.Gray)
+                Text(dateRange, fontSize = 16.sp, color = Color.Gray)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("주간 입출고 그래프", fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(24.dp))

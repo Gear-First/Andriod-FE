@@ -1,17 +1,23 @@
 package com.ljs.and.ui.home
 
+import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ljs.and.data.model.BranchPurchaseOrderItem
 import com.ljs.and.data.model.InventoryOnHandItem
+import com.ljs.and.data.remote.HomeApiService
+import com.ljs.and.data.repository.HomeRepository
 import com.ljs.and.data.repository.InventoryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlin.random.Random
@@ -39,7 +45,8 @@ data class HomeUiState(
     val status: StatusData = StatusData(),
     val inventoryItems: List<InventoryItemData> = emptyList(),
     val weeklyInOutData: List<InOutData> = emptyList(),
-    val notifications: List<NotificationItem> = emptyList()
+    val notifications: List<NotificationItem> = emptyList(),
+    val weeklyChartDateRange: String = ""
 )
 
 data class StatusData(
@@ -59,7 +66,16 @@ enum class ChartType {
 
 class HomeViewModel : ViewModel() {
 
-    private val repository = InventoryRepository
+    private val inventoryRepository = InventoryRepository
+
+    private val homeApiService: HomeApiService by lazy {
+        Retrofit.Builder()
+            .baseUrl("http://34.120.215.23/warehouse/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(HomeApiService::class.java)
+    }
+    private val homeRepository = HomeRepository(homeApiService)
 
     private val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
 
@@ -80,20 +96,63 @@ class HomeViewModel : ViewModel() {
 
     fun refreshData() {
         loadStatusData()
+        val selectedDate = sdf.parse(_uiState.value.selectedDate) ?: Date()
+        loadWeeklyInOutData(selectedDate)
     }
 
     private fun loadInitialData() {
         viewModelScope.launch {
             _uiState.update { currentState ->
                 currentState.copy(
-//                    inventoryItems = getSampleInventoryData(), // Will be loaded from API
-                    weeklyInOutData = getSampleWeeklyData(),
                     notifications = getSampleNotifications()
                 )
             }
             loadStatusData()
+            val selectedDate = sdf.parse(_uiState.value.selectedDate) ?: Date()
+            loadWeeklyInOutData(selectedDate)
         }
     }
+
+    private fun loadWeeklyInOutData(baseDate: Date) {
+        viewModelScope.launch {
+            try {
+                val dailyData = homeRepository.getWeeklyInOutData(baseDate = baseDate, warehouseCode = "서울")
+                val daySdf = SimpleDateFormat("EEE", Locale.KOREAN)
+                val dateSdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+                val weeklyData = dailyData.entries
+                    .map { entry ->
+                        val date = dateSdf.parse(entry.key)
+                        val dayName = daySdf.format(date!!)
+                        val calendar = Calendar.getInstance().apply { time = date }
+                        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+                        Triple(dayOfWeek, dayName, InOutData(
+                            day = dayName,
+                            inbound = entry.value.first.toFloat(),
+                            outbound = entry.value.second.toFloat()
+                        ))
+                    }
+                    .sortedBy { it.first } // Sort by day of the week
+                    .map { it.third } // Extract the InOutData
+
+                val calendar = Calendar.getInstance()
+                calendar.time = baseDate
+                val toDate = sdf.format(calendar.time)
+                calendar.add(Calendar.DAY_OF_YEAR, -6)
+                val fromDate = sdf.format(calendar.time)
+
+                _uiState.update { it.copy(
+                    weeklyInOutData = weeklyData,
+                    weeklyChartDateRange = "$fromDate - $toDate"
+                ) }
+
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading weekly in/out data", e)
+                _uiState.update { it.copy(weeklyInOutData = emptyList()) }
+            }
+        }
+    }
+
 
     private fun loadStatusData() {
         viewModelScope.launch {
@@ -103,7 +162,7 @@ class HomeViewModel : ViewModel() {
                 var inventoryPage = 0
                 var inventoryTotalPages = 1
                 while (inventoryPage < inventoryTotalPages) {
-                    val inventoryResponse = repository.getInventoryOnHand(
+                    val inventoryResponse = inventoryRepository.getInventoryOnHand(
                         warehouseCode = "서울",
                         partKeyword = null,
                         supplierName = null,
@@ -129,7 +188,7 @@ class HomeViewModel : ViewModel() {
                 var requestPage = 0
                 var requestTotalPages = 1
                 while (requestPage < requestTotalPages) {
-                    val requestResponse = repository.getBranchPurchaseOrders(
+                    val requestResponse = inventoryRepository.getBranchPurchaseOrders(
                         branchCode = "seoul",
                         engineerId = 1111,
                         startDate = null,
@@ -200,7 +259,8 @@ class HomeViewModel : ViewModel() {
             is HomeEvent.ShowDatePicker -> _uiState.update { it.copy(isDatePickerVisible = true) }
             is HomeEvent.HideDatePicker -> _uiState.update { it.copy(isDatePickerVisible = false) }
             is HomeEvent.DateSelected -> {
-                val newDate = sdf.format(Date(event.dateMillis))
+                val selectedDate = Date(event.dateMillis)
+                val newDate = sdf.format(selectedDate)
                 val todayDate = sdf.format(Date())
                 _uiState.update {
                     it.copy(
@@ -210,25 +270,19 @@ class HomeViewModel : ViewModel() {
                     )
                 }
                 updateStatusForDate(event.dateMillis)
+                loadWeeklyInOutData(selectedDate)
             }
             is HomeEvent.ShowNotificationDialog -> _uiState.update { it.copy(isNotificationDialogVisible = true) }
             is HomeEvent.HideNotificationDialog -> _uiState.update { it.copy(isNotificationDialogVisible = false) }
-            is HomeEvent.ShowChart -> _uiState.update { it.copy(visibleChart = event.chartType) }
+            is HomeEvent.ShowChart -> {
+                val selectedDate = sdf.parse(_uiState.value.selectedDate) ?: Date()
+                if (event.chartType == ChartType.WEEKLY) {
+                    loadWeeklyInOutData(selectedDate)
+                }
+                _uiState.update { it.copy(visibleChart = event.chartType) }
+            }
             is HomeEvent.HideChart -> _uiState.update { it.copy(visibleChart = null) }
         }
-    }
-
-    // --- Sample Data Providers ---
-    private fun getSampleWeeklyData(): List<InOutData> {
-        return listOf(
-            InOutData("S", 30f, 25f),
-            InOutData("M", 40f, 35f),
-            InOutData("T", 60f, 45f),
-            InOutData("W", 90f, 80f),
-            InOutData("T", 50f, 40f),
-            InOutData("F", 35f, 30f),
-            InOutData("S", 25f, 20f),
-        )
     }
 
     private fun getSampleNotifications(): List<NotificationItem> {

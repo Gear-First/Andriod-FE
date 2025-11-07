@@ -118,6 +118,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
             )
             ChartType.WEEKLY -> WeeklyInOutChartModal(
                 weeklyData = uiState.weeklyInOutData,
+                dateRange = uiState.weeklyChartDateRange,
                 onDismiss = { viewModel.onEvent(HomeEvent.HideChart) }
             )
         }

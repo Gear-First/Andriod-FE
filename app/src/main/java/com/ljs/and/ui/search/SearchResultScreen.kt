@@ -59,6 +59,9 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.ljs.and.data.model.ReceivingNote
+import com.ljs.and.ui.receiving.ReceivingViewModel
+import com.ljs.and.ui.receiving.ReceivingViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,13 +69,15 @@ fun SearchResultScreen(
     navController: NavController,
     flowType: String,
     initialQuery: String,
-    viewModel: SearchResultViewModel = viewModel()
+    receivingViewModel: ReceivingViewModel = viewModel(factory = ReceivingViewModelFactory())
 ) {
     var searchQuery by remember { mutableStateOf(initialQuery) }
-    val searchResults by viewModel.searchResults.collectAsState()
+    val receivingUiState by receivingViewModel.uiState.collectAsState()
 
     LaunchedEffect(flowType, searchQuery) {
-        viewModel.search(flowType, searchQuery)
+        if (flowType == "receiving") {
+            receivingViewModel.searchReceivingNotes(searchQuery, null)
+        }
     }
 
     Scaffold(
@@ -100,7 +105,7 @@ fun SearchResultScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.search(flowType, searchQuery) }) {
+                    IconButton(onClick = { /* ViewModel search function is already triggered by LaunchedEffect */ }) {
                         Icon(Icons.Default.Search, contentDescription = "Search")
                     }
                 },
@@ -110,32 +115,32 @@ fun SearchResultScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier.background(Color(0xFFF5F5F7)),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = paddingValues.calculateTopPadding() + 12.dp,
-                bottom = paddingValues.calculateBottomPadding() + 12.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(searchResults) { result ->
-                when (result) {
-                    is SearchResult.Receiving -> ReceivingResultCard(item = result.item, onClick = {}) // Updated Card
-                    is SearchResult.Releasing -> ReleasingResultCard(item = result.item, onClick = {}) // Updated Card
-                    is SearchResult.Inventory -> InventoryItemCard(item = result.item, onClick = {}) // Updated Card
-                    is SearchResult.Pending -> PendingResultCard(result.item)
+        if (flowType == "receiving") {
+            LazyColumn(
+                modifier = Modifier.background(Color(0xFFF5F5F7)),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = paddingValues.calculateTopPadding() + 12.dp,
+                    bottom = paddingValues.calculateBottomPadding() + 12.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(receivingUiState.searchResultList) { item ->
+                    ReceivingResultCard(item = item, onClick = { /* Navigate to detail */ })
                 }
             }
         }
     }
 }
 
-// Updated to match InspectionItemCard from ReceivingInspectionScreen.kt
 @Composable
-fun ReceivingResultCard(item: ReceivingSearchResultItem, onClick: () -> Unit) {
-    val isInspected = item.status == "ACCEPTED" || item.status.startsWith("COMPLETED")
+fun ReceivingResultCard(item: ReceivingNote, onClick: () -> Unit) {
+    val statusColor = when (item.status.lowercase()) {
+        "completed_issue", "completed_ok" -> Color(0xFF007BFF) // 파란색
+        "pending", "in_progress" -> Color(0xFFFF4C4C) // 빨간색
+        else -> Color.Gray
+    }
 
     Card(
         modifier = Modifier
@@ -145,280 +150,31 @@ fun ReceivingResultCard(item: ReceivingSearchResultItem, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(item.supplierName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("${item.productName} / ${item.productLot}", fontSize = 14.sp)
-                Text("입고 번호: ${item.receivingNo}", fontSize = 12.sp, color = Color.Gray)
-                Text("요청 수량: ${item.orderedQty}", fontSize = 12.sp, color = Color.Gray)
-                Text("검수 수량: ${item.inspectedQty}", fontSize = 12.sp, color = Color.Gray)
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AsyncImage(
-                    model = item.imgUrl,
-                    contentDescription = "Product Image",
-                    modifier = Modifier.size(80.dp)
+            Box(Modifier.fillMaxWidth()) {
+                Text(
+                    text = "공급 업체: ${item.supplierName}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    modifier = Modifier.align(Alignment.CenterStart)
                 )
-                OutlinedButton(
-                    onClick = { /* Clicks are handled by the card */ },
-                    shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, if (isInspected) Color(0xFF007BFF) else Color.Red),
-                    enabled = false,
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
-                ) {
-                    Text(
-                        text = if (isInspected) "검수완료" else "검수 전",
-                        color = if (isInspected) Color(0xFF007BFF) else Color.Red,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
-}
-
-// Updated to match PickingItemCard from ReleasingPickingScreen.kt
-@Composable
-fun ReleasingResultCard(item: ReleasingSearchResultItem, onClick: () -> Unit) {
-    val isPicked = item.pickedQty >= item.allocatedQty
-
-    val buttonText = when {
-        isPicked -> "피킹완료"
-        item.status == "SHORTAGE" -> "부족"
-        else -> "피킹 전"
-    }
-
-    val buttonColor = when {
-        isPicked -> Color(0xFF007BFF)
-        item.status == "SHORTAGE" -> Color.Red
-        else -> Color.Red
-    }
-    
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(item.customerName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("${item.productName} / ${item.productLot}", fontSize = 14.sp)
-                Text("출고번호: ${item.shippingNo}", fontSize = 12.sp, color = Color.Gray)
-                Text("할당수량: ${item.allocatedQty}", fontSize = 12.sp, color = Color.Gray)
-                Text("피킹수량: ${item.pickedQty}", fontSize = 12.sp, color = Color.Gray)
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AsyncImage(
-                    model = item.imgUrl,
-                    contentDescription = "Product Image",
-                    modifier = Modifier.size(80.dp)
-                )
-                OutlinedButton(
-                    onClick = { /* Clicks are handled by the card */ },
-                    shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, buttonColor),
-                    enabled = false,
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
-                ) {
-                    Text(
-                        text = buttonText,
-                        color = buttonColor,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
-}
-
-// Copied from InventoryScreen.kt
-@Composable
-fun InventoryItemCard(item: InventorySearchResultItem, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text("${item.name} / ${item.code}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(item.supplier, fontSize = 14.sp)
-                Text("현재/최소: ${item.currentStock}/${item.minimumStock}", fontSize = 12.sp, color = Color.Gray)
-                Text("위치: ${item.location}", fontSize = 12.sp, color = Color.Gray)
-                Text("최근 입출고: ${item.lastTransactionDate}", fontSize = 12.sp, color = Color.Gray)
-                Text("담당자: ${item.manager ?: ""}", fontSize = 12.sp, color = Color.Gray)
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item.imageUrl?.let {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current).data(it).crossfade(true).build(),
-                        contentDescription = item.name,
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } ?: Box(
+                Text(
+                    text = item.status,
                     modifier = Modifier
-                        .size(80.dp)
-                        .background(Color.LightGray, RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(imageVector = Icons.Outlined.Build, contentDescription = "No Image", modifier = Modifier.size(40.dp), tint = Color.Gray)
-                }
-                StatusBadge(status = item.status)
-            }
-        }
-    }
-}
-
-// Copied from InventoryScreen.kt
-@Composable
-fun StatusBadge(status: ItemStatus) {
-    val (text, color) = when (status) {
-        ItemStatus.NORMAL, ItemStatus.COMPLETED -> "정상" to Color(0xFF28A745)
-        ItemStatus.LOW_STOCK -> "부족" to Color(0xFFFFC107)
-        ItemStatus.DEFECTIVE -> "불량" to Color(0xFF6C757D)
-    }
-
-    OutlinedButton(
-        onClick = { /* 아무것도 안함 */ },
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, color)
-    ) {
-        Text(
-            text = text,
-            color = color,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-
-@Composable
-fun PendingResultCard(item: PendingItem) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, Color.LightGray),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("[${item.type} 번호] ${item.number}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text("공급 업체: ${item.company}", fontSize = 14.sp, color = Color.Gray)
-                    Text("부품: ${item.partName}", fontSize = 14.sp, color = Color.Gray)
-                    Text("위치: ${item.location}, 수량: ${item.quantity}", fontSize = 14.sp, color = Color.Gray)
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                AsyncImage(
-                    model = item.imageUrl,
-                    contentDescription = item.partName,
-                    modifier = Modifier.size(60.dp)
+                        .align(Alignment.TopEnd)
+                        .background(statusColor, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
                 )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                 Column {
-                    Text("담당자", fontSize = 12.sp, color = Color.Gray)
-                    Text(item.manager, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                }
-                OutlinedButton(
-                    onClick = { /* No action */ },
-                    shape = CircleShape,
-                    border = BorderStroke(1.dp, Color.Red),
-                    modifier = Modifier.size(width = 80.dp, height = 40.dp),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Text(item.status, color = Color.Red, fontSize = 14.sp, textAlign = TextAlign.Center)
-                }
-            }
+            Text("입고번호: ${item.receivingNo}", fontSize = 14.sp, color = Color.Gray)
+            Text("품목 종류: ${item.itemKindsNumber}종", fontSize = 14.sp, color = Color.Gray)
+            Text("총 수량: ${item.totalQty}개", fontSize = 14.sp, color = Color.Gray)
         }
     }
-}
-
-
-@Preview(showBackground = true, name = "Receiving Result")
-@Composable
-fun ReceivingResultScreenPreview() {
-    SearchResultScreen(navController = rememberNavController(), flowType = "receiving", initialQuery = "현대")
-}
-
-@Preview(showBackground = true, name = "Releasing Result")
-@Composable
-fun ReleasingResultScreenPreview() {
-    SearchResultScreen(navController = rememberNavController(), flowType = "releasing", initialQuery = "현대")
-}
-
-@Preview(showBackground = true, name = "Inventory Result")
-@Composable
-fun InventoryResultScreenPreview() {
-    SearchResultScreen(navController = rememberNavController(), flowType = "inventory", initialQuery = "오일")
-}
-
-@Preview(showBackground = true, name = "Pending Result")
-@Composable
-fun PendingResultScreenPreview() {
-    SearchResultScreen(navController = rememberNavController(), flowType = "pending", initialQuery = "엔진")
 }

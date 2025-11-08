@@ -28,16 +28,19 @@ class ReceivingRepository(private val apiService: ReceivingApiService) {
     }
 
     suspend fun getReceivingNotes(
+        q: String?,
         status: String,
         date: String?,
         dateFrom: String?,
         dateTo: String?,
         warehouseCode: String?,
+        receivingNo: String?,
+        supplierName: String?,
         page: Int,
         size: Int,
         sort: List<String>?
     ): ApiResponse<PagedReceivingNotes> {
-        return apiService.getReceivingNotes(status, date, dateFrom, dateTo, warehouseCode, page, size, sort)
+        return apiService.getReceivingNotes(q, status, date, dateFrom, dateTo, warehouseCode, receivingNo, supplierName, page, size, sort)
     }
 
     suspend fun getNotDoneReceivingNotes(

@@ -37,11 +37,14 @@ interface ReceivingApiService {
 
     @GET("api/v1/receiving/notes")
     suspend fun getReceivingNotes(
+        @Query("q") q: String?,
         @Query("status") status: String,
         @Query("date") date: String?,
         @Query("dateFrom") dateFrom: String?,
         @Query("dateTo") dateTo: String?,
         @Query("warehouseCode") warehouseCode: String?,
+        @Query("receivingNo") receivingNo: String?,
+        @Query("supplierName") supplierName: String?,
         @Query("page") page: Int,
         @Query("size") size: Int,
         @Query("sort") sort: List<String>?

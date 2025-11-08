@@ -34,9 +34,7 @@ data class UpdateReceivingLineRequest(
     @SerializedName("inspectedQty")
     val inspectedQty: Int,
     @SerializedName("rejected")
-    val rejected: Boolean,
-    @SerializedName("lineRemark")
-    val lineRemark: String?
+    val rejected: Boolean
 )
 
 // 입고 완료 응답

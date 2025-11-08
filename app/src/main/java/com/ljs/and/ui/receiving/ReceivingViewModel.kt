@@ -28,13 +28,16 @@ import java.time.format.DateTimeFormatter
 data class ReceivingUiState(
     val notDoneReceivingList: List<ReceivingNote> = emptyList(),
     val doneReceivingList: List<ReceivingNote> = emptyList(),
+    val searchResultList: List<ReceivingNote> = emptyList(), // 검색 결과
     val selectedReceivingNoteDetail: ReceivingNoteDetail? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val notDonePage: Int = 0,
     val donePage: Int = 0,
+    val searchPage: Int = 0,
     val canLoadMoreNotDone: Boolean = true,
     val canLoadMoreDone: Boolean = true,
+    val canLoadMoreSearch: Boolean = true,
     val createdReceivingNote: ReceivingNoteDetail? = null,
     val receivingCompletion: ReceivingCompletion? = null,
     val rejectionProcessCompleted: Boolean = false // 재입고 처리 완료 상태
@@ -46,6 +49,45 @@ class ReceivingViewModel(private val repository: ReceivingRepository) : ViewMode
     val uiState: StateFlow<ReceivingUiState> = _uiState.asStateFlow()
 
     private val TAG = "ReceivingViewModel"
+
+    fun searchReceivingNotes(query: String?, warehouseCode: String?) {
+        if (uiState.value.isLoading) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, searchResultList = emptyList(), searchPage = 0, canLoadMoreSearch = true) }
+            try {
+                val response = repository.getReceivingNotes(
+                    q = query,
+                    status = "all",
+                    date = null,
+                    dateFrom = null,
+                    dateTo = null,
+                    warehouseCode = warehouseCode,
+                    receivingNo = null,
+                    supplierName = null,
+                    page = 0,
+                    size = 20,
+                    sort = null
+                )
+                if (response.success) {
+                    val newItems = response.data?.items ?: emptyList()
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            isLoading = false,
+                            searchResultList = newItems,
+                            searchPage = 1,
+                            canLoadMoreSearch = newItems.size == 20
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isLoading = false, errorMessage = response.message) }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
+            }
+        }
+    }
+
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun processRejectedItemAndReRequest(lineId: Long, rejectedQty: Int, remark: String?) {
@@ -60,7 +102,7 @@ class ReceivingViewModel(private val repository: ReceivingRepository) : ViewMode
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
                 // 1. 현재 라인 불량 처리 (검수 수량 0, 불량 플래그 true)
-                val updateRequest = UpdateReceivingLineRequest(inspectedQty = 0, rejected = true, lineRemark = "[불량처리] $remark")
+                val updateRequest = UpdateReceivingLineRequest(inspectedQty = 0, rejected = true)
                 val updateResponse = repository.updateReceivingLine(noteDetail.noteId, lineId, updateRequest)
                 if (!updateResponse.success) throw Exception("기존 품목 불량 처리 실패: ${updateResponse.message}")
 
@@ -277,7 +319,7 @@ class ReceivingViewModel(private val repository: ReceivingRepository) : ViewMode
             _uiState.update { it.copy(isLoading = true) }
             Log.d(TAG, "Updating inspection for noteId: $noteId, lineId: $lineId, qty: $inspectedQty, rejected: $rejected, remark: $lineRemark")
             try {
-                val request = UpdateReceivingLineRequest(inspectedQty, rejected, lineRemark)
+                val request = UpdateReceivingLineRequest(inspectedQty, rejected)
                 val response = repository.updateReceivingLine(noteId, lineId, request)
                 if (response.success) {
                     Log.d(TAG, "Successfully updated inspection for lineId: $lineId")

@@ -7,8 +7,8 @@ data class Product(
     val id: Long = 0L,
     @SerializedName("lot")
     val lot: String = "",
-    @SerializedName("serial")
-    val serial: String = "",
+    @SerializedName("code")
+    val code: String = "",
     @SerializedName("name")
     val name: String = "",
     @SerializedName("imgUrl")

@@ -1,5 +1,7 @@
 package com.ljs.and.ui
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
@@ -112,6 +114,7 @@ private val bottomNavItems = listOf(
     Screen.More to Pair("더보기", Icons.Filled.MoreVert)
 )
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
@@ -175,6 +178,7 @@ private fun BottomNavigationBar(navController: NavHostController) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun NavigationGraph(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Screen.Splash.route) {
@@ -200,8 +204,9 @@ private fun NavigationGraph(navController: NavHostController) {
         }
 
         navigation(startDestination = Screen.ReleasingHome.route, route = Screen.Releasing.route) {
-            composable(Screen.ReleasingHome.route) {
-                val viewModel: ReleasingViewModel = viewModel(factory = ReleasingViewModelFactory())
+            composable(Screen.ReleasingHome.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Releasing.route) }
+                val viewModel: ReleasingViewModel = viewModel(parentEntry, factory = ReleasingViewModelFactory())
                 ReleasingScreen(navController = navController, viewModel = viewModel)
             }
             composable(
@@ -213,7 +218,8 @@ private fun NavigationGraph(navController: NavHostController) {
             ) { backStackEntry ->
                 val noteId = backStackEntry.arguments?.getLong("noteId") ?: -1L
                 val isReadOnly = backStackEntry.arguments?.getBoolean("isReadOnly") ?: false
-                val viewModel: ReleasingViewModel = viewModel(factory = ReleasingViewModelFactory())
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Releasing.route) }
+                val viewModel: ReleasingViewModel = viewModel(parentEntry, factory = ReleasingViewModelFactory())
                 ReleasingPickingScreen(navController = navController, noteId = noteId, viewModel = viewModel, isReadOnly = isReadOnly)
             }
         }
@@ -263,14 +269,30 @@ private fun NavigationGraph(navController: NavHostController) {
                 navArgument("lineRemark") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
+            val flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving"
+            val receivingViewModel: ReceivingViewModel = if (flowType == "receiving") {
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Receiving.route) }
+                viewModel(parentEntry, factory = ReceivingViewModelFactory())
+            } else {
+                viewModel(factory = ReceivingViewModelFactory()) // Should not happen in this flow
+            }
+            val releasingViewModel: ReleasingViewModel = if (flowType == "releasing") {
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Releasing.route) }
+                viewModel(parentEntry, factory = ReleasingViewModelFactory())
+            } else {
+                viewModel(factory = ReleasingViewModelFactory()) // Should not happen in this flow
+            }
+
             BarcodeScanScreen(
                 navController = navController,
-                flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving",
+                flowType = flowType,
                 noteId = backStackEntry.arguments?.getLong("noteId") ?: -1L,
                 lineId = backStackEntry.arguments?.getLong("lineId") ?: -1L,
                 currentQty = backStackEntry.arguments?.getInt("currentQty") ?: 0,
                 orderedQty = backStackEntry.arguments?.getInt("orderedQty") ?: 0,
-                lineRemark = backStackEntry.arguments?.getString("lineRemark")
+                lineRemark = backStackEntry.arguments?.getString("lineRemark"),
+                receivingViewModel = receivingViewModel,
+                releasingViewModel = releasingViewModel
             )
         }
         composable(
@@ -284,14 +306,30 @@ private fun NavigationGraph(navController: NavHostController) {
                 navArgument("lineRemark") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
+            val flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving"
+            val receivingViewModel: ReceivingViewModel = if (flowType == "receiving") {
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Receiving.route) }
+                viewModel(parentEntry, factory = ReceivingViewModelFactory())
+            } else {
+                viewModel(factory = ReceivingViewModelFactory())
+            }
+            val releasingViewModel: ReleasingViewModel = if (flowType == "releasing") {
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Releasing.route) }
+                viewModel(parentEntry, factory = ReleasingViewModelFactory())
+            } else {
+                viewModel(factory = ReleasingViewModelFactory())
+            }
+
             ManualInputScreen(
                 navController = navController,
-                flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving",
+                flowType = flowType,
                 noteId = backStackEntry.arguments?.getLong("noteId") ?: -1L,
                 lineId = backStackEntry.arguments?.getLong("lineId") ?: -1L,
                 currentQty = backStackEntry.arguments?.getInt("currentQty") ?: 0,
                 orderedQty = backStackEntry.arguments?.getInt("orderedQty") ?: 0,
-                lineRemark = backStackEntry.arguments?.getString("lineRemark")
+                lineRemark = backStackEntry.arguments?.getString("lineRemark"),
+                receivingViewModel = receivingViewModel,
+                releasingViewModel = releasingViewModel
             )
         }
 

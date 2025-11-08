@@ -1,7 +1,9 @@
 package com.ljs.and.ui.common
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,16 +37,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.ljs.and.ui.Screen
 import com.ljs.and.ui.receiving.ReceivingViewModel
-import com.ljs.and.ui.receiving.ReceivingViewModelFactory
 import com.ljs.and.ui.releasing.ReleasingViewModel
-import com.ljs.and.ui.releasing.ReleasingViewModelFactory
 
+@RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("UnrememberedMutableState")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,12 +55,11 @@ fun ManualInputScreen(
     lineId: Long,
     currentQty: Int,
     orderedQty: Int,
-    lineRemark: String?
+    lineRemark: String?,
+    receivingViewModel: ReceivingViewModel,
+    releasingViewModel: ReleasingViewModel
 ) {
     val isReceiving = flowType == "receiving"
-
-    val releasingViewModel: ReleasingViewModel = viewModel(factory = ReleasingViewModelFactory())
-    val receivingViewModel: ReceivingViewModel = viewModel(factory = ReceivingViewModelFactory())
 
     val releasingUiState by releasingViewModel.uiState.collectAsState()
     val receivingUiState by receivingViewModel.uiState.collectAsState()
@@ -92,11 +91,23 @@ fun ManualInputScreen(
     val title = if (isReceiving) "검수 수량 입력" else "피킹 수량 입력"
     val quantityLabel = if (isReceiving) "검수 수량" else "피킹 수량"
 
-    val bottomButtonText = if (isReceiving) "검수 확인" else "피킹 확인"
+    val bottomButtonText = when {
+        isReceiving && rejected -> "재입고 신청"
+        isReceiving -> "검수 확인"
+        else -> "피킹 확인"
+    }
 
     val isFormValid by derivedStateOf { quantity.toIntOrNull() != null }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
     val TAG = "ManualInputScreen"
+
+    LaunchedEffect(receivingUiState.errorMessage) {
+        receivingUiState.errorMessage?.let {
+            snackbarHostState.showSnackbar("오류: $it")
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -105,6 +116,7 @@ fun ManualInputScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF5F5F7))
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
         Column(
@@ -140,7 +152,7 @@ fun ManualInputScreen(
                             TitledTextField(label = "부품명", value = receivingLine?.product?.name ?: "", onValueChange = {}, readOnly = true)
                             TitledTextField(label = "부품코드", value = receivingLine?.product?.lot ?: "", onValueChange = {}, readOnly = true)
                             TitledTextField(label = "입고번호", value = receivingNote?.receivingNo ?: "", onValueChange = {}, readOnly = true)
-                            TitledTextField(label = "요청수량", value = receivingLine?.orderedQty.toString(), onValueChange = {}, readOnly = true)
+                            TitledTextField(label = "요청수량", value = orderedQty.toString(), onValueChange = {}, readOnly = true)
                         } else {
                             val shippingNote = noteDetail as? com.ljs.and.data.model.ShippingNoteDetail
                             val shippingLine = line as? com.ljs.and.data.model.ShippingLine
@@ -201,22 +213,27 @@ fun ManualInputScreen(
                 ManualInputBottomBar(
                     onCancel = { navController.popBackStack() },
                     onComplete = {
-                        try {
-                            val targetRoute = if (isReceiving) Screen.ReceivingInspection.route else Screen.ReleasingPicking.route
-                            navController.getBackStackEntry(targetRoute).savedStateHandle.let {
-                                val qty = quantity.toIntOrNull() ?: 0
-                                it["lineId"] = lineId
-                                if (isReceiving) {
-                                    it["inspectedQty"] = qty
-                                    it["rejected"] = rejected
-                                    it["lineRemark"] = if (rejected) currentLineRemark else null
-                                } else {
-                                    it["pickedQty"] = qty
+                        if (isReceiving && rejected) {
+                            receivingViewModel.processRejectedItemAndReRequest(lineId, orderedQty, currentLineRemark)
+                            navController.popBackStack(Screen.ReceivingInspection.createRoute(false), inclusive = false)
+                        } else {
+                            try {
+                                val targetRoute = if (isReceiving) Screen.ReceivingInspection.createRoute(false) else Screen.ReleasingPicking.createRoute(noteId, false)
+                                navController.getBackStackEntry(targetRoute).savedStateHandle.let {
+                                    val qty = quantity.toIntOrNull() ?: 0
+                                    it["lineId"] = lineId
+                                    if (isReceiving) {
+                                        it["inspectedQty"] = qty
+                                        it["rejected"] = rejected
+                                        it["lineRemark"] = if (rejected) currentLineRemark else null
+                                    } else {
+                                        it["pickedQty"] = qty
+                                    }
                                 }
+                                navController.popBackStack(targetRoute, inclusive = false)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error during onComplete", e)
                             }
-                            navController.popBackStack(targetRoute, inclusive = false)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error during onComplete", e)
                         }
                     },
                     isCompleteEnabled = isFormValid,
@@ -314,30 +331,29 @@ fun ManualInputBottomBar(onCancel: () -> Unit, onComplete: () -> Unit, isComplet
                 .weight(1f)
                 .height(48.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF007BFF),
-                disabledContainerColor = Color.LightGray
-            ),
-            enabled = isCompleteEnabled,
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 4.dp)
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF)),
+            enabled = isCompleteEnabled
         ) {
             Text(buttonText, color = Color.White)
         }
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
-fun ManualInputScreenReceivingPreview() {
+fun ManualInputScreenPreview() {
     MaterialTheme {
-        ManualInputScreen(navController = rememberNavController(), flowType = "receiving", noteId = -1L, lineId = 1L, currentQty = 90, orderedQty = 100, lineRemark = "")
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ManualInputScreenReleasingPreview() {
-    MaterialTheme {
-        ManualInputScreen(navController = rememberNavController(), flowType = "releasing", noteId = -1L, lineId = 1L, currentQty = 90, orderedQty = 100, lineRemark = "")
+        ManualInputScreen(
+            navController = rememberNavController(),
+            flowType = "receiving",
+            noteId = 1,
+            lineId = 1,
+            currentQty = 10,
+            orderedQty = 10,
+            lineRemark = "Sample Remark",
+            receivingViewModel = viewModel(),
+            releasingViewModel = viewModel()
+        )
     }
 }

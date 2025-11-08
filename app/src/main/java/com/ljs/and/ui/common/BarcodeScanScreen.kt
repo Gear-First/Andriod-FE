@@ -18,20 +18,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.ljs.and.ui.Screen
-
+import com.ljs.and.ui.receiving.ReceivingViewModel
+import com.ljs.and.ui.releasing.ReleasingViewModel
 
 @Composable
 fun BarcodeScanScreen(
-    navController: NavController, 
+    navController: NavController,
     flowType: String,
-    noteId: Long, 
+    noteId: Long,
     lineId: Long,
     currentQty: Int,
     orderedQty: Int,
-    lineRemark: String?
+    lineRemark: String?,
+    receivingViewModel: ReceivingViewModel,
+    releasingViewModel: ReleasingViewModel
 ) {
     val initialTabIndex = if (flowType == "releasing") 1 else 0
     var selectedTabIndex by remember { mutableStateOf(initialTabIndex) }
@@ -67,8 +71,8 @@ fun BarcodeScanScreen(
                 navController.navigate(
                     Screen.ManualInput.createRoute(
                         flowType = if (selectedTabIndex == 0) "receiving" else "releasing",
-                        noteId = noteId, 
-                        lineId = targetLineId, 
+                        noteId = noteId,
+                        lineId = targetLineId,
                         currentQty = currentQty,
                         orderedQty = orderedQty,
                         lineRemark = lineRemark
@@ -172,6 +176,16 @@ fun ScanActionButtons(onCancel: () -> Unit, onManualInput: () -> Unit, modifier:
 @Composable
 fun BarcodeScanScreenPreview() {
     MaterialTheme {
-        BarcodeScanScreen(navController = rememberNavController(), flowType = "receiving", noteId = -1L, lineId = -1L, currentQty = 0, orderedQty = 0, lineRemark = null)
+        BarcodeScanScreen(
+            navController = rememberNavController(),
+            flowType = "receiving",
+            noteId = -1L,
+            lineId = -1L,
+            currentQty = 0,
+            orderedQty = 0,
+            lineRemark = null,
+            receivingViewModel = viewModel(),
+            releasingViewModel = viewModel()
+        )
     }
 }

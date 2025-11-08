@@ -137,11 +137,13 @@ fun ReceivingInspectionScreen(
                     isReadOnly = isReadOnly,
                     onItemClick = { line ->
                         navController.navigate(
-                            Screen.BarcodeScan.createRoute(
+                            Screen.ManualInput.createRoute(
                                 flowType = "receiving",
-                                noteId = selectedNoteDetail.noteId, // noteId 추가
+                                noteId = selectedNoteDetail.noteId,
                                 lineId = line.lineId,
-                                currentQty = line.inspectedQty
+                                currentQty = line.inspectedQty,
+                                orderedQty = line.orderedQty,
+                                lineRemark = line.lineRemark
                             )
                         )
                     }

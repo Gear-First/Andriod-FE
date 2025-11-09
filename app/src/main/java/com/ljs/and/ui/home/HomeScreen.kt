@@ -1,4 +1,3 @@
-
 package com.ljs.and.ui.home
 
 import androidx.compose.foundation.clickable
@@ -350,7 +349,7 @@ fun QuickActions(navController: NavController) {
         QuickAction(
             icon = Icons.Default.Check,
             label = "재고 신청",
-            onClick = { navController.navigate(Screen.InventoryRequestForm.route) }
+            onClick = { navController.navigate(Screen.InventoryHome.createRoute(filter = "재고신청")) }
         )
     }
 }

@@ -5,18 +5,7 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,15 +17,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -46,8 +31,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.ljs.and.data.model.InventoryOnHandItem
 import com.ljs.and.ui.Screen
 import com.ljs.and.ui.theme.AndTheme
@@ -81,11 +64,11 @@ fun InventoryScreen(
     val focusManager = LocalFocusManager.current
 
     val inventoryState by viewModel.inventoryState.collectAsState()
+    val requestState by viewModel.requestState.collectAsState()
 
-    // Refresh data when the screen is first composed or recomposed
     LaunchedEffect(Unit) {
-        viewModel.loadInventory(forceRefresh = true)
-        viewModel.loadPurchaseOrders(forceRefresh = true)
+        viewModel.loadInventory()
+        viewModel.loadPurchaseOrders()
     }
 
     LaunchedEffect(filter) {
@@ -107,9 +90,7 @@ fun InventoryScreen(
                 onSearchQueryChange = { searchQuery = it },
                 onSearchVisibilityChange = { isSearchVisible = it },
                 onPerformSearch = {
-                    if (searchQuery.isNotBlank()) {
-                        navController.navigate(Screen.SearchResult.createRoute("inventory", searchQuery))
-                    }
+                    // TODO: Implement Search
                     isSearchVisible = false
                     focusManager.clearFocus()
                 }
@@ -117,9 +98,7 @@ fun InventoryScreen(
         },
         containerColor = Color(0xFFF5F5F7)
     ) { innerPadding ->
-        Column(
-            modifier = Modifier.padding(top = innerPadding.calculateTopPadding())
-        ) {
+        Column(modifier = Modifier.padding(top = innerPadding.calculateTopPadding())) {
             InventoryTabRow(
                 selectedTabIndex = selectedTabIndex,
                 tabs = tabs,
@@ -133,20 +112,21 @@ fun InventoryScreen(
                         if (item.lowStock) {
                             navController.navigate(
                                 Screen.InventoryRequestForm.createRoute(
+                                    partId = item.part.id,
                                     partName = item.part.name,
                                     partCode = item.part.code,
+                                    price = item.price,
                                     safetyStockQty = item.safetyStockQty
                                 )
                             )
                         }
                     },
-                    onPageChange = { viewModel.loadInventory(it - 1) },
-                    onNextPage = { viewModel.loadInventory(inventoryState.currentPage) },
-                    onPreviousPage = { viewModel.loadInventory(inventoryState.currentPage - 2) }
+                    onPageChange = { viewModel.loadInventory(it - 1) }
                 )
                 1 -> InventoryRequestScreen(
                     navController = navController,
-                    viewModel = viewModel
+                    requestState = requestState,
+                    onFilterChange = { viewModel.updateRequestFilter(it) }
                 )
             }
         }
@@ -219,9 +199,7 @@ fun InventoryTopAppBar(
 @Composable
 fun InventoryTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (Int) -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -234,10 +212,7 @@ fun InventoryTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (I
             Button(
                 onClick = { onTabSelected(index) },
                 shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = containerColor,
-                    contentColor = contentColor
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor),
                 border = border,
                 modifier = Modifier.padding(horizontal = 8.dp)
             ) {
@@ -253,119 +228,65 @@ fun InventoryStatusScreen(
     inventoryState: InventoryState,
     onFilterChange: (String) -> Unit,
     onItemClick: (InventoryOnHandItem) -> Unit,
-    onPageChange: (Int) -> Unit,
-    onNextPage: () -> Unit,
-    onPreviousPage: () -> Unit
+    onPageChange: (Int) -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             InventorySummaryDashboard(
-                totalItems = inventoryState.totalItems,
-                totalQuantity = inventoryState.totalQuantity.toInt(),
-                lackingItems = inventoryState.lackingItems,
+                totalItems = inventoryState.totalItems.toInt(),
+                totalQuantity = inventoryState.inventoryList.sumOf { it.onHandQty.toLong() }.toInt(),
+                lackingItems = inventoryState.inventoryList.count { it.lowStock }
             )
         }
         item {
-            FilterDropdown(
-                selectedOption = inventoryState.selectedFilter,
-                onOptionSelected = onFilterChange
-            )
+            FilterDropdown(selectedOption = inventoryState.selectedFilter, onOptionSelected = onFilterChange, options = listOf("전체", "정상", "부족"))
         }
 
         if (inventoryState.isLoading) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillParentMaxSize() // Fill the parent LazyColumn
-                        .padding(vertical = 50.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
+            item { Box(modifier = Modifier.fillParentMaxSize().padding(vertical = 50.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
         } else if (inventoryState.inventoryList.isEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillParentMaxSize()
-                        .padding(vertical = 50.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("표시할 항목이 없습니다.")
-                }
-            }
+            item { Box(modifier = Modifier.fillParentMaxSize().padding(vertical = 50.dp), contentAlignment = Alignment.Center) { Text("표시할 항목이 없습니다.") } }
         } else {
             items(inventoryState.inventoryList) { item ->
                 InventoryItemCard(item = item, onClick = { onItemClick(item) })
             }
-
             if (inventoryState.totalPages > 1) {
-                item {
-                    PaginationControls(
-                        currentPage = inventoryState.currentPage,
-                        totalPages = inventoryState.totalPages,
-                        onPageChange = onPageChange,
-                        onNextPage = onNextPage,
-                        onPreviousPage = onPreviousPage
-                    )
-                }
+                item { PaginationControls(inventoryState.currentPage, inventoryState.totalPages, onPageChange) }
             }
         }
     }
 }
 
-
 @Composable
-fun PaginationControls(
-    currentPage: Int,
-    totalPages: Int,
-    onPageChange: (Int) -> Unit,
-    onNextPage: () -> Unit,
-    onPreviousPage: () -> Unit
-) {
+fun PaginationControls(currentPage: Int, totalPages: Int, onPageChange: (Int) -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onPreviousPage, enabled = currentPage > 1) {
+        IconButton(onClick = { onPageChange(currentPage - 1) }, enabled = currentPage > 1) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous Page")
         }
-
         Spacer(modifier = Modifier.width(16.dp))
-
-        // Page numbers
         val maxPageNumbersToShow = 5
         val startPage = ((currentPage - 1) / maxPageNumbersToShow) * maxPageNumbersToShow + 1
         val endPage = (startPage + maxPageNumbersToShow - 1).coerceAtMost(totalPages)
-
         for (i in startPage..endPage) {
-            Text(
-                text = i.toString(),
-                modifier = Modifier
-                    .clickable { onPageChange(i) }
-                    .padding(8.dp),
+            Text(text = i.toString(), modifier = Modifier.clickable { onPageChange(i) }.padding(8.dp),
                 fontWeight = if (i == currentPage) FontWeight.Bold else FontWeight.Normal,
                 color = if (i == currentPage) MaterialTheme.colorScheme.primary else Color.Gray
             )
         }
-
         Spacer(modifier = Modifier.width(16.dp))
-
-        IconButton(onClick = onNextPage, enabled = currentPage < totalPages) {
+        IconButton(onClick = { onPageChange(currentPage + 1) }, enabled = currentPage < totalPages) {
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Page")
         }
     }
 }
-
 
 @Composable
 fun InventorySummaryDashboard(totalItems: Int, totalQuantity: Int, lackingItems: Int) {
@@ -375,10 +296,7 @@ fun InventorySummaryDashboard(totalItems: Int, totalQuantity: Int, lackingItems:
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("📦 총 품목: ${totalItems}종", fontSize = 16.sp)
             Text("📊 전체 수량: ${totalQuantity}개", fontSize = 16.sp)
             Text("⚠️ 부족 품목: ${lackingItems}개", fontSize = 16.sp)
@@ -388,36 +306,17 @@ fun InventorySummaryDashboard(totalItems: Int, totalQuantity: Int, lackingItems:
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FilterDropdown(selectedOption: String, onOptionSelected: (String) -> Unit) {
+fun FilterDropdown(selectedOption: String, onOptionSelected: (String) -> Unit, options: List<String>) {
     var expanded by remember { mutableStateOf(false) }
-    val options = listOf("전체", "정상", "부족")
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
-    ) {
-        Row(
-            modifier = Modifier
-                .menuAnchor()
-                .clickable { expanded = true },
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+        Row(modifier = Modifier.menuAnchor().clickable { expanded = true }, verticalAlignment = Alignment.CenterVertically) {
             Text(text = selectedOption, fontWeight = FontWeight.Bold)
             Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = "Dropdown")
         }
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.background(Color.White).width(100.dp)
-
-        ) {
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.background(Color.White).width(100.dp)) {
             options.forEach { selectionOption ->
-                DropdownMenuItem(
-                    text = { Text(selectionOption) },
-                    onClick = {
-                        onOptionSelected(selectionOption)
-                        expanded = false
-                    },
+                DropdownMenuItem(text = { Text(selectionOption) },
+                    onClick = { onOptionSelected(selectionOption); expanded = false },
                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                 )
             }
@@ -429,45 +328,25 @@ fun FilterDropdown(selectedOption: String, onOptionSelected: (String) -> Unit) {
 @Composable
 fun InventoryItemCard(item: InventoryOnHandItem, onClick: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("${item.part.name} / ${item.part.code}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text("창고: ${item.warehouseCode}", fontSize = 14.sp)
                 Text("현재 재고: ${item.onHandQty}", fontSize = 12.sp, color = Color.Gray)
                 Text("안전 재고: ${item.safetyStockQty}", fontSize = 12.sp, color = Color.Gray)
-                Text("최근 입출고: ${formatDateTime(item.lastUpdatedAt)}", fontSize = 12.sp, color = Color.Gray)
+                Text("최근 입출고: ${formatDateTime(item.updatedAt)}", fontSize = 12.sp, color = Color.Gray)
             }
-
             Spacer(modifier = Modifier.width(16.dp))
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .background(Color.Transparent, RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-//                    Icon(imageVector = Icons.Outlined.Build, contentDescription = "Image", modifier = Modifier.size(40.dp), tint = Color.Gray)
-                }
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatusBadge(isLowStock = item.lowStock)
             }
         }
@@ -476,22 +355,9 @@ fun InventoryItemCard(item: InventoryOnHandItem, onClick: () -> Unit) {
 
 @Composable
 fun StatusBadge(isLowStock: Boolean) {
-    val (text, color) = if (isLowStock) {
-        "부족" to Color(0xFFFFC107)
-    } else {
-        "정상" to Color(0xFF28A745)
-    }
-
-    OutlinedButton(
-        onClick = { /* 아무것도 안함 */ },
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, color)
-    ) {
-        Text(
-            text = text,
-            color = color,
-            fontWeight = FontWeight.Bold
-        )
+    val (text, color) = if (isLowStock) "부족" to Color(0xFFFFC107) else "정상" to Color(0xFF28A745)
+    OutlinedButton(onClick = { }, shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, color)) {
+        Text(text = text, color = color, fontWeight = FontWeight.Bold)
     }
 }
 

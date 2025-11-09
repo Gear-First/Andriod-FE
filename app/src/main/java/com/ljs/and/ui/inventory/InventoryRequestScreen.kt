@@ -5,7 +5,17 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,17 +26,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ModifierLocalBeyondBoundsLayout
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
-import com.ljs.and.data.model.BranchPurchaseOrderItem
+import com.ljs.and.data.model.PurchaseOrder
 import com.ljs.and.ui.Screen
-import com.ljs.and.ui.theme.AndTheme
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
@@ -46,26 +51,15 @@ private fun formatRequestDateTime(dateTimeString: String?): String {
 @Composable
 fun InventoryRequestScreen(
     navController: NavHostController,
-    viewModel: InventoryViewModel = viewModel()
+    requestState: RequestState,
+    onFilterChange: (String) -> Unit
 ) {
-    val requestState by viewModel.requestState.collectAsState()
-
-    Scaffold(
-        containerColor = Color(0xFFF5F5F7)
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = paddingValues.calculateTopPadding(),
-                    bottom = 0.dp
-                )
-        ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // 필터링 및 리스트
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 80.dp), // Button space
-                contentPadding = PaddingValues(16.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp), // 버튼 공간 확보
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
@@ -75,28 +69,39 @@ fun InventoryRequestScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("신청 리스트", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                         RequestFilterDropdown(
-                             selectedOption = requestState.selectedFilter,
-                             onOptionSelected = { viewModel.updateRequestFilter(it) }
-                         )
+                        RequestFilterDropdown(
+                            selectedOption = requestState.selectedFilter,
+                            onOptionSelected = onFilterChange
+                        )
                     }
                 }
-                items(requestState.requestList) { request ->
-                    InventoryRequestCard(request = request)
+                if (requestState.isLoading) {
+                    item { Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+                } else if (requestState.errorMessage != null) {
+                    item { Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) { Text(text = "오류: ${requestState.errorMessage}") } }
+                } else if (requestState.requestList.isEmpty()) {
+                    item { Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) { Text("표시할 항목이 없습니다.") } }
+                } else {
+                    items(requestState.requestList) { order ->
+                        InventoryRequestCard(order = order)
+                    }
                 }
             }
+        }
 
-            Button(
-                onClick = { navController.navigate(Screen.InventoryRequestForm.route) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .align(Alignment.BottomCenter),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
-            ) {
-                Text("재고 신청", modifier = Modifier.padding(vertical = 8.dp), color = Color.White)
-            }
+        // 하단 버튼
+        Button(
+            onClick = { 
+                navController.navigate(Screen.InventoryRequestForm.createRoute(0L, null, null, 0, 0))
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .align(Alignment.BottomCenter),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
+        ) {
+            Text("재고 신청", modifier = Modifier.padding(vertical = 8.dp), color = Color.White)
         }
     }
 }
@@ -107,14 +112,9 @@ internal fun RequestFilterDropdown(selectedOption: String, onOptionSelected: (St
     var expanded by remember { mutableStateOf(false) }
     val options = listOf("전체", "대기", "승인")
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
-    ) {
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
         Row(
-            modifier = Modifier
-                .menuAnchor()
-                .clickable { expanded = true },
+            modifier = Modifier.menuAnchor().clickable { expanded = true },
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(text = selectedOption, fontWeight = FontWeight.Bold)
@@ -123,17 +123,12 @@ internal fun RequestFilterDropdown(selectedOption: String, onOptionSelected: (St
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier
-                .width(100.dp)
-                .background(Color.White)
+            modifier = Modifier.width(100.dp).background(Color.White)
         ) {
             options.forEach { selectionOption ->
                 DropdownMenuItem(
                     text = { Text(selectionOption) },
-                    onClick = {
-                        onOptionSelected(selectionOption)
-                        expanded = false
-                    },
+                    onClick = { onOptionSelected(selectionOption); expanded = false },
                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
                 )
             }
@@ -143,66 +138,40 @@ internal fun RequestFilterDropdown(selectedOption: String, onOptionSelected: (St
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun InventoryRequestCard(request: BranchPurchaseOrderItem, onClick: () -> Unit = {}) {
-    val item = request.items.firstOrNull()
-    val totalQuantity = request.items.sumOf { it.quantity }
+fun InventoryRequestCard(order: PurchaseOrder, onClick: () -> Unit = {}) {
+    val item = order.items.firstOrNull()
+    val totalQuantity = order.items.sumOf { it.quantity }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 왼쪽 텍스트 정보
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val title = when {
-                    request.items.size > 1 -> "${item?.partName} 외 ${request.items.size - 1}건"
+                    order.items.size > 1 -> "${item?.partName} 외 ${order.items.size - 1}건"
                     item != null -> "${item.partName} / ${item.partCode}"
                     else -> "부품 정보 없음"
                 }
                 Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("접수 번호: ${request.orderNumber}", fontSize = 14.sp)
+                Text("접수 번호: ${order.orderNumber}", fontSize = 14.sp)
                 Text("신청 수량: ${totalQuantity}개", fontSize = 12.sp, color = Color.Gray)
-                Text("신청 일자: ${formatRequestDateTime(request.requestDate)}", fontSize = 12.sp, color = Color.Gray)
+                Text("신청 일자: ${formatRequestDateTime(order.requestDate)}", fontSize = 12.sp, color = Color.Gray)
             }
-
             Spacer(modifier = Modifier.width(16.dp))
-
-            // 오른쪽 상태 버튼 (Badge 스타일)
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .background(Color.Transparent, RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                }
-                StatusButton(
-                    status = request.status,
-//                    modifier = Modifier
-//                        .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
-//                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                )
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(modifier = Modifier.size(60.dp).background(Color.Transparent, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {}
+                StatusButton(status = order.status)
             }
         }
     }
 }
-
 
 @Composable
 fun StatusButton(status: String, modifier: Modifier = Modifier) {
@@ -212,24 +181,13 @@ fun StatusButton(status: String, modifier: Modifier = Modifier) {
         "COMPLETED" -> "완료" to Color.Gray
         else -> status to Color.Gray
     }
-
     OutlinedButton(
-        onClick = { /* Status change? */ },
+        onClick = { /* 상태 변경 기능 추가 시 구현 */ },
         shape = RoundedCornerShape(50),
         border = BorderStroke(1.dp, color),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = color),
         modifier = modifier
     ) {
         Text(text)
-    }
-}
-
-
-@RequiresApi(Build.VERSION_CODES.O)
-@Preview(showBackground = true)
-@Composable
-fun InventoryRequestScreenPreview() {
-    AndTheme {
-        InventoryRequestScreen(navController = rememberNavController())
     }
 }

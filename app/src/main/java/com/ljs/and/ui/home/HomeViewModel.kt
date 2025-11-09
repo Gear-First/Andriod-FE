@@ -4,8 +4,8 @@ import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ljs.and.data.model.BranchPurchaseOrderItem
 import com.ljs.and.data.model.InventoryOnHandItem
+import com.ljs.and.data.model.PurchaseOrder
 import com.ljs.and.data.model.UserManager
 import com.ljs.and.data.remote.HomeApiService
 import com.ljs.and.data.repository.HomeRepository
@@ -69,7 +69,7 @@ enum class ChartType {
 
 class HomeViewModel : ViewModel() {
 
-    private val inventoryRepository = InventoryRepository
+    private val inventoryRepository = InventoryRepository()
 
     private val homeApiService: HomeApiService by lazy {
         Retrofit.Builder()
@@ -170,79 +170,41 @@ class HomeViewModel : ViewModel() {
 
     private fun loadStatusData() {
         viewModelScope.launch {
-            try {
-                // Fetch all inventory items
-                val allInventoryItems = mutableListOf<InventoryOnHandItem>()
-                var inventoryPage = 0
-                var inventoryTotalPages = 1
-                while (inventoryPage < inventoryTotalPages) {
-                    val inventoryResponse = inventoryRepository.getInventoryOnHand(
-                        warehouseCode = "서울",
-                        partKeyword = null,
-                        supplierName = null,
-                        minQty = null,
-                        maxQty = null,
-                        page = inventoryPage,
-                        size = 100,
-                        sort = null
-                    )
-                    if (inventoryResponse.success) {
-                        inventoryResponse.data?.items?.let { allInventoryItems.addAll(it) }
-                        inventoryTotalPages = inventoryResponse.data?.let {
-                            if (it.size == 0) 1 else kotlin.math.ceil(it.total.toDouble() / it.size).toInt()
-                        } ?: 1
-                        inventoryPage++
-                    } else {
-                        break // Exit loop on failure
+            val allInventoryItems = mutableListOf<InventoryOnHandItem>()
+            inventoryRepository.fetchInventoryList("서울", null, null, null, null, 0, 100)
+                .onSuccess {
+                    if (it.success) {
+                        allInventoryItems.addAll(it.data?.items ?: emptyList())
                     }
                 }
 
-                // Fetch all purchase orders for request count
-                val allPurchaseOrderItems = mutableListOf<BranchPurchaseOrderItem>()
-                var requestPage = 0
-                var requestTotalPages = 1
-                while (requestPage < requestTotalPages) {
-                    val requestResponse = inventoryRepository.getBranchPurchaseOrders(
-                        branchCode = "seoul",
-                        engineerId = 1111,
-                        startDate = null,
-                        endDate = null,
-                        page = requestPage,
-                        size = 100
-                    )
-                    if (requestResponse.success) {
-                        requestResponse.data?.content?.let { allPurchaseOrderItems.addAll(it) }
-                        requestTotalPages = requestResponse.data?.totalPages ?: 1
-                        requestPage++
-                    } else {
-                        break // Exit loop on failure
+            val allPurchaseOrderItems = mutableListOf<PurchaseOrder>()
+            inventoryRepository.fetchBranchOrders(1, "test", "팀장", "서울", "본사", null, null, 0, 100)
+                .onSuccess {
+                    if (it.success) {
+                        allPurchaseOrderItems.addAll(it.data?.content ?: emptyList())
                     }
                 }
 
-                // Process data for UI
-                val lowStockCount = allInventoryItems.count { it.lowStock }
-                val requestCount = allPurchaseOrderItems.size
+            val lowStockCount = allInventoryItems.count { it.lowStock }
+            val requestCount = allPurchaseOrderItems.size
 
-                val top5Inventory = allInventoryItems
-                    .sortedByDescending { it.onHandQty }
-                    .take(5)
-                    .mapIndexed { index, item ->
-                        InventoryItemData(
-                            name = item.part.name,
-                            quantity = item.onHandQty,
-                            color = chartColors.getOrElse(index) { Color.Gray } // Use predefined colors
-                        )
-                    }
-
-                _uiState.update {
-                    it.copy(
-                        status = it.status.copy(lowStockCount = lowStockCount, requestCount = requestCount),
-                        inventoryItems = top5Inventory
+            val top5Inventory = allInventoryItems
+                .sortedByDescending { it.onHandQty }
+                .take(5)
+                .mapIndexed { index, item ->
+                    InventoryItemData(
+                        name = item.part.name,
+                        quantity = item.onHandQty,
+                        color = chartColors.getOrElse(index) { Color.Gray }
                     )
                 }
 
-            } catch (e: Exception) {
-                // Handle error
+            _uiState.update {
+                it.copy(
+                    status = it.status.copy(lowStockCount = lowStockCount, requestCount = requestCount),
+                    inventoryItems = top5Inventory
+                )
             }
         }
     }

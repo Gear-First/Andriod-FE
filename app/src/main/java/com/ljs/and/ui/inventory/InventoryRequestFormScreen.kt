@@ -22,20 +22,27 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.ljs.and.ui.Screen
+import com.ljs.and.ui.common.TitledTextField
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InventoryRequestFormScreen(
     navController: NavHostController,
-    viewModel: InventoryViewModel = viewModel(),
+    viewModel: InventoryViewModel,
+    partId: Long,
     partName: String?,
     partCode: String?,
-    safetyStockQty: Int?
+    price: Int,
+    safetyStockQty: Int
 ) {
+    val isPreFilled = partId != 0L
+
     var partNameState by remember { mutableStateOf(partName ?: "") }
     var partCodeState by remember { mutableStateOf(partCode ?: "") }
-    var safetyStockQtyState by remember { mutableStateOf(safetyStockQty?.toString() ?: "") }
+    val partIdState = if(isPreFilled) partId else 0L 
+    val priceState = if(isPreFilled) price else 0
+    
     var requestQuantity by remember { mutableStateOf("") }
 
     val creationState by viewModel.purchaseOrderCreationState.collectAsState()
@@ -62,9 +69,7 @@ fun InventoryRequestFormScreen(
             viewModel.resetPurchaseOrderCreationState()
         }
         creationState.error?.let {
-            scope.launch {
-                snackbarHostState.showSnackbar("오류: $it")
-            }
+            scope.launch { snackbarHostState.showSnackbar("오류: $it") }
             viewModel.resetPurchaseOrderCreationState()
         }
     }
@@ -88,10 +93,7 @@ fun InventoryRequestFormScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(
-                        top = innerPadding.calculateTopPadding() - 15.dp,
-                        bottom = innerPadding.calculateBottomPadding()
-                    )
+                    .padding(top = innerPadding.calculateTopPadding() - 15.dp, bottom = innerPadding.calculateBottomPadding())
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState())
             ) {
@@ -102,11 +104,12 @@ fun InventoryRequestFormScreen(
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        TitledTextField(label = "부품명", value = partNameState, onValueChange = { partNameState = it })
+                        TitledTextField(label = "부품명", value = partNameState, onValueChange = { partNameState = it }, readOnly = isPreFilled)
                         Spacer(modifier = Modifier.height(16.dp))
-                        TitledTextField(label = "부품코드", value = partCodeState, onValueChange = { partCodeState = it })
+                        TitledTextField(label = "부품코드", value = partCodeState, onValueChange = { partCodeState = it }, readOnly = isPreFilled)
                         Spacer(modifier = Modifier.height(16.dp))
-                        TitledTextField(label = "안전재고", value = safetyStockQtyState, onValueChange = { safetyStockQtyState = it }, readOnly = true)
+                        val safetyStockValue = if (isPreFilled) safetyStockQty.toString() else "0"
+                        TitledTextField(label = "안전재고", value = safetyStockValue, onValueChange = {}, readOnly = true)
                         Spacer(modifier = Modifier.height(16.dp))
                         TitledTextField(label = "신청 수량", value = requestQuantity, onValueChange = { requestQuantity = it }, keyboardType = KeyboardType.Number)
                     }
@@ -116,16 +119,10 @@ fun InventoryRequestFormScreen(
                     onClick = {
                         val quantity = requestQuantity.toIntOrNull()
                         if (isFormValid && quantity != null) {
-                            viewModel.createPurchaseOrder(
-                                partName = partNameState,
-                                partCode = partCodeState,
-                                quantity = quantity
-                            )
+                            viewModel.createPurchaseOrder(partIdState, partNameState, partCodeState, priceState, quantity)
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF)),
                     enabled = isFormValid && !creationState.isLoading
@@ -141,48 +138,10 @@ fun InventoryRequestFormScreen(
     }
 }
 
-@Composable
-fun TitledTextField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    readOnly: Boolean = false,
-    singleLine: Boolean = true,
-    keyboardType: KeyboardType = KeyboardType.Text
-) {
-    var isFocused by remember { mutableStateOf(false) }
-
-    Column(modifier = modifier) {
-        if (label.isNotEmpty()) {
-            Text(label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp), color = Color.DarkGray)
-        }
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .onFocusChanged { focusState ->
-                    isFocused = focusState.isFocused
-                },
-            shape = RoundedCornerShape(8.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFF007BFF),
-                unfocusedBorderColor = Color.LightGray,
-                unfocusedContainerColor = if (readOnly) Color(0xFFF5F5F5) else Color.White,
-                focusedContainerColor = if (readOnly) Color(0xFFF5F5F5) else Color.White
-            ),
-            readOnly = readOnly,
-            singleLine = singleLine,
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
-        )
-    }
-}
-
 @Preview(showBackground = true)
 @Composable
 fun InventoryRequestFormScreenPreview() {
     MaterialTheme {
-        InventoryRequestFormScreen(navController = rememberNavController(), partName = "Part Name", partCode = "Part Code", safetyStockQty = 10)
+        InventoryRequestFormScreen(rememberNavController(), viewModel(), 1L, "Part Name", "Part Code", 10000, 10)
     }
 }

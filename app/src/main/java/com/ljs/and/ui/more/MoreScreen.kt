@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 
@@ -38,7 +39,13 @@ enum class NotificationType {
 // ---------------------- MAIN SCREEN ---------------------- //
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MoreScreen(navController: NavController) {
+fun MoreScreen(navController: NavController, viewModel: MoreViewModel = viewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(key1 = Unit) {
+        viewModel.loadUserInfo()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -56,7 +63,7 @@ fun MoreScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // 유저 정보 카드
-            UserInfoCard()
+            UserInfoCard(uiState)
 
             // 입출고 로그
             val logs = remember { getDummyLogs() }
@@ -122,7 +129,7 @@ fun MoreScreen(navController: NavController) {
 
 // ---------------------- USER INFO CARD ---------------------- //
 @Composable
-fun UserInfoCard(profileImage: Int? = null) {
+fun UserInfoCard(uiState: MoreUiState) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -135,14 +142,13 @@ fun UserInfoCard(profileImage: Int? = null) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("이름: 홍길동", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Text("아이디: user_id", color = Color.Gray, fontSize = 14.sp)
-                    Text("창고: 서울 중앙 창고", color = Color.Gray, fontSize = 14.sp)
+                    Text("이름: ${uiState.userName}", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("이메일: ${uiState.email}", color = Color.Gray, fontSize = 14.sp)
+                    Text("창고: ${uiState.warehouseName}", color = Color.Gray, fontSize = 14.sp)
                 }
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                // ✅ 기본 프로필 아이콘 (AccountCircle)
                 Icon(
                     imageVector = Icons.Default.AccountCircle,
                     contentDescription = "Default Profile Icon",
@@ -183,7 +189,6 @@ fun ExpandableMoreItem(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color(0xFFE0E0E0)),
-//        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier
             .fillMaxWidth()
             .animateContentSize()

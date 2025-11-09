@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ljs.and.data.model.BranchPurchaseOrderItem
 import com.ljs.and.data.model.InventoryOnHandItem
+import com.ljs.and.data.model.UserManager
 import com.ljs.and.data.remote.HomeApiService
 import com.ljs.and.data.repository.HomeRepository
 import com.ljs.and.data.repository.InventoryRepository
@@ -37,6 +38,8 @@ enum class NotificationType {
 // --- UI State ---
 
 data class HomeUiState(
+    val userName: String = "", // userName 추가
+    val userEmail: String = "",
     val selectedDate: String = "",
     val isTodaySelected: Boolean = true,
     val isDatePickerVisible: Boolean = false,
@@ -91,10 +94,21 @@ class HomeViewModel : ViewModel() {
     )
 
     init {
+        loadUserInfo()
         loadInitialData()
+    }
+    
+    fun loadUserInfo() {
+        _uiState.update { 
+            it.copy(
+                userName = UserManager.userName ?: "사용자",
+                userEmail = UserManager.email ?: "정보 없음"
+            ) 
+        }
     }
 
     fun refreshData() {
+        loadUserInfo()
         loadStatusData()
         val selectedDate = sdf.parse(_uiState.value.selectedDate) ?: Date()
         loadWeeklyInOutData(selectedDate)

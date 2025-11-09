@@ -82,6 +82,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             GreetingSection(
+                userName = uiState.userName,
                 selectedDate = uiState.selectedDate,
                 onDateClick = { viewModel.onEvent(HomeEvent.ShowDatePicker) }
             )
@@ -148,12 +149,12 @@ fun HomeTopAppBar(onNotificationClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GreetingSection(selectedDate: String, onDateClick: () -> Unit) {
+fun GreetingSection(userName: String, selectedDate: String, onDateClick: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("안녕하세요, 김창고님!", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text("안녕하세요, ${userName}님!", fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,

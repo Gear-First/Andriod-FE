@@ -8,16 +8,28 @@ import androidx.lifecycle.lifecycleScope
 import com.ljs.and.MainActivity
 import com.ljs.and.data.model.AuthManager
 import com.ljs.and.data.model.TokenManager
+import com.ljs.and.data.model.UserManager
 import com.ljs.and.data.remote.AuthApiService
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class AuthCallbackActivity : ComponentActivity() {
 
     private val authApiService: AuthApiService by lazy {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
+        val httpClient = OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .build()
+
         Retrofit.Builder()
             .baseUrl("http://34.120.215.23/auth/")
+            .client(httpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(AuthApiService::class.java)
@@ -25,7 +37,6 @@ class AuthCallbackActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        AuthManager.init(this) // AuthManager 초기화
 
         val data = intent.data
         if (data != null && data.scheme == "gearfirst" && data.host == "callback") {
@@ -35,22 +46,33 @@ class AuthCallbackActivity : ComponentActivity() {
             if (code != null && state != null && state == AuthManager.state) {
                 lifecycleScope.launch {
                     try {
-                        val response = authApiService.exchangeToken(
+                        // 1. 토큰 교환
+                        val tokenResponse = authApiService.exchangeToken(
                             grantType = "authorization_code",
                             code = code,
                             redirectUri = "gearfirst://callback",
                             clientId = "gearfirst-client-mobile",
                             codeVerifier = AuthManager.codeVerifier!!
                         )
-                        TokenManager.setAccessToken(response.accessToken)
-                        TokenManager.setRefreshToken(this@AuthCallbackActivity, response.refreshToken)
+                        val accessToken = tokenResponse.accessToken
+                        TokenManager.setAccessToken(accessToken)
+                        TokenManager.setRefreshToken(this@AuthCallbackActivity, tokenResponse.refreshToken)
 
-                        // [로그 추가] 발급받은 토큰 확인
-                        Log.d("AuthCallbackActivity", "Access Token: ${response.accessToken}")
-                        Log.d("AuthCallbackActivity", "Refresh Token: ${response.refreshToken}")
+                        Log.d("AuthCallbackActivity", "Access Token: $accessToken")
 
-                        AuthManager.clear() // 성공 시 저장된 값 삭제
+                        // 2. 사용자 정보 요청
+                        val userInfo = authApiService.getUserInfo("Bearer $accessToken")
 
+                        // 3. 사용자 정보 저장 (이메일은 동적, 나머지는 하드코딩)
+                        UserManager.email = userInfo.sub
+                        UserManager.userName = "이창고" // 임시 하드코딩
+                        UserManager.warehouseName = "서울 중앙 창고" // 임시 하드코딩
+
+                        Log.d("AuthCallbackActivity", "User email stored: ${userInfo.sub}")
+
+                        AuthManager.clear() // 성공 시 임시 인증 값 삭제
+
+                        // 메인 액티비티로 이동
                         val intent = Intent(this@AuthCallbackActivity, MainActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                         }
@@ -58,13 +80,16 @@ class AuthCallbackActivity : ComponentActivity() {
                         finish()
 
                     } catch (e: Exception) {
-                        Log.e("AuthCallbackActivity", "Error exchanging token", e)
-                        AuthManager.clear() // 실패 시 저장된 값 삭제
+                        Log.e("AuthCallbackActivity", "Auth process failed", e)
+                        // 실패 시 모든 관련 데이터 삭제
+                        AuthManager.clear()
+                        TokenManager.clearTokens(this@AuthCallbackActivity)
+                        UserManager.clear()
                     }
                 }
             } else {
                 Log.e("AuthCallbackActivity", "Invalid state or missing code")
-                AuthManager.clear() // 실패 시 저장된 값 삭제
+                AuthManager.clear()
             }
         }
     }

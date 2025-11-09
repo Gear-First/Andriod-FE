@@ -9,17 +9,26 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.ljs.and.data.model.TokenManager
 import com.ljs.and.ui.Screen
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(navController: NavController) {
+    val context = LocalContext.current
+
     LaunchedEffect(Unit) {
-        delay(2000) // 2 seconds delay
-        navController.navigate(Screen.Login.route) {
+        delay(1500) // 1.5 seconds delay
+        val destination = if (TokenManager.getAccessToken() != null) {
+            Screen.Home.route
+        } else {
+            Screen.Login.route
+        }
+        navController.navigate(destination) {
             popUpTo(Screen.Splash.route) { inclusive = true }
         }
     }

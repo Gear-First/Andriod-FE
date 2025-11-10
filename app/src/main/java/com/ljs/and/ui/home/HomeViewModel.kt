@@ -130,7 +130,7 @@ class HomeViewModel : ViewModel() {
     private fun loadWeeklyInOutData(baseDate: Date) {
         viewModelScope.launch {
             try {
-                val dailyData = homeRepository.getWeeklyInOutData(baseDate = baseDate, warehouseCode = "서울")
+                val dailyData = homeRepository.getWeeklyInOutData(baseDate = baseDate, warehouseCode = "수원")
                 val daySdf = SimpleDateFormat("EEE", Locale.KOREAN)
                 val dateSdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 

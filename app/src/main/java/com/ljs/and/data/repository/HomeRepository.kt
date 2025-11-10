@@ -27,31 +27,29 @@ class HomeRepository(private val homeApiService: HomeApiService) {
     suspend fun getWeeklyInOutData(baseDate: Date, warehouseCode: String?): Map<String, Pair<Int, Int>> {
         val calendar = Calendar.getInstance()
         calendar.time = baseDate
-        val dateTo = calendar.time
+        val dateToString = dateFormat.format(calendar.time)
         calendar.add(Calendar.DAY_OF_YEAR, -6)
-        val dateFrom = calendar.time
+        val dateFromString = dateFormat.format(calendar.time)
 
         val shippingResponse = homeApiService.getShippingNotes(
-            dateFrom = null, // 모든 기간의 데이터 조회
+            dateFrom = null,
             dateTo = null,
-            warehouseCode = null, // 모든 창고 데이터 조회
-            sort = "expectedShipDate,asc"
+            warehouseCode = warehouseCode
         )
 
         val receivingResponse = homeApiService.getReceivingNotes(
-            dateFrom = null, // 모든 기간의 데이터 조회
+            dateFrom = null,
             dateTo = null,
-            warehouseCode = null, // 모든 창고 데이터 조회
-            sort = "expectedReceiveDate,asc"
+            warehouseCode = warehouseCode
         )
 
         val dailyData = mutableMapOf<String, Pair<Int, Int>>()
-        val dates = getDatesBetween(dateFormat.format(dateFrom), dateFormat.format(dateTo))
+        val dates = getDatesBetween(dateFromString, dateToString)
         dates.forEach { date ->
             dailyData[date] = Pair(0, 0)
         }
 
-        val dateStringsInPeriod = getDatesBetween(dateFormat.format(dateFrom), dateFormat.format(dateTo))
+        val dateStringsInPeriod = getDatesBetween(dateFromString, dateToString)
 
         receivingResponse.data?.items?.forEach { item ->
             item.expectedReceiveDate?.let {

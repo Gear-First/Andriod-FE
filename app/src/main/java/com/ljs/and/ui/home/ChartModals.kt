@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.Popup
 import kotlin.math.atan2
+import kotlin.math.max
 
 @Composable
 fun InventoryChartModal(inventoryData: List<InventoryItemData>, onDismiss: () -> Unit) {
@@ -182,7 +183,7 @@ fun WeeklyInOutChartModal(weeklyData: List<InOutData>, dateRange: String, onDism
 
 @Composable
 fun BidirectionalBarChart(data: List<InOutData>) {
-    val maxVal = data.maxOfOrNull { maxOf(it.inbound, it.outbound) } ?: 1f
+    val maxVal = maxOf(data.maxOfOrNull { maxOf(it.inbound, it.outbound) } ?: 0f, 1f)
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("입고", fontSize = 14.sp, color = Color.Gray)

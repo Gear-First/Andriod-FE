@@ -8,9 +8,8 @@ import retrofit2.http.Query
 
 interface HomeApiService {
 
-    @GET("api/v1/shipping/notes")
+    @GET("api/v1/shipping/not-done")
     suspend fun getShippingNotes(
-        @Query("status") status: String = "all",
         @Query("dateFrom") dateFrom: String? = null,
         @Query("dateTo") dateTo: String? = null,
         @Query("warehouseCode") warehouseCode: String? = null,
@@ -19,9 +18,8 @@ interface HomeApiService {
         @Query("sort") sort: String? = null
     ): ShippingResponse
 
-    @GET("api/v1/receiving/notes")
+    @GET("api/v1/receiving/not-done")
     suspend fun getReceivingNotes(
-        @Query("status") status: String = "all",
         @Query("dateFrom") dateFrom: String? = null,
         @Query("dateTo") dateTo: String? = null,
         @Query("warehouseCode") warehouseCode: String? = null,

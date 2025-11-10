@@ -339,12 +339,12 @@ fun QuickActions(navController: NavController) {
         QuickAction(
             icon = Icons.Default.Add,
             label = "입고 등록",
-            onClick = { navController.navigate(Screen.BarcodeScan.createRoute("receiving")) }
+            onClick = { navController.navigate(Screen.ManualInput.createRoute(flowType = "receiving", noteId= -1L, lineId = -1L, currentQty = 0, orderedQty = 0, lineRemark = null)) }
         )
         QuickAction(
             icon = Icons.Default.ArrowForward,
             label = "출고 등록",
-            onClick = { navController.navigate(Screen.BarcodeScan.createRoute("releasing")) }
+            onClick = { navController.navigate(Screen.ManualInput.createRoute(flowType = "releasing", noteId= -1L, lineId = -1L, currentQty = 0, orderedQty = 0, lineRemark = null)) }
         )
         QuickAction(
             icon = Icons.Default.Check,

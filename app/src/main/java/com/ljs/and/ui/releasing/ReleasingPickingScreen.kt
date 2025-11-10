@@ -167,7 +167,7 @@ fun ReleasingPickingScreen(
                     selectedShippingNoteDetail = selectedItem,
                     isReadOnly = isReadOnly,
                     onItemClick = { line ->
-                        navController.navigate(Screen.BarcodeScan.createRoute(
+                        navController.navigate(Screen.ManualInput.createRoute(
                             flowType = "releasing",
                             noteId = noteId,
                             lineId = line.lineId,

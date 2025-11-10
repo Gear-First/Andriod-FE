@@ -1,6 +1,8 @@
 package com.ljs.and.ui.login
 
 import android.net.Uri
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -21,6 +23,7 @@ import com.ljs.and.data.model.AuthManager
 import com.ljs.and.data.model.PkceUtil
 import java.util.UUID
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun LoginScreen(navController: NavController) {
     val context = LocalContext.current

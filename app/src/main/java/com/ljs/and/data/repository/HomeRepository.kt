@@ -1,5 +1,6 @@
 package com.ljs.and.data.repository
 
+import com.ljs.and.data.model.NoteCountsData
 import com.ljs.and.data.remote.HomeApiService
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -9,6 +10,19 @@ import java.util.Locale
 class HomeRepository(private val homeApiService: HomeApiService) {
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+    suspend fun getNoteCounts(date: String): Result<NoteCountsData> {
+        return try {
+            val response = homeApiService.getNoteCounts(date)
+            if (response.success && response.data != null) {
+                Result.success(response.data)
+            } else {
+                Result.failure(Exception(response.message))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     suspend fun getWeeklyInOutData(baseDate: Date, warehouseCode: String?): Map<String, Pair<Int, Int>> {
         val calendar = Calendar.getInstance()

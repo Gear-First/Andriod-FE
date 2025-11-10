@@ -21,7 +21,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import kotlin.random.Random
 
 // --- Data Classes (DTOs) ---
 
@@ -81,6 +80,7 @@ class HomeViewModel : ViewModel() {
     private val homeRepository = HomeRepository(homeApiService)
 
     private val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
+    private val apiSdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     private val _uiState = MutableStateFlow(HomeUiState(selectedDate = sdf.format(Date())))
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -97,7 +97,7 @@ class HomeViewModel : ViewModel() {
         loadUserInfo()
         loadInitialData()
     }
-    
+
     fun loadUserInfo() {
         _uiState.update { 
             it.copy(
@@ -109,8 +109,8 @@ class HomeViewModel : ViewModel() {
 
     fun refreshData() {
         loadUserInfo()
-        loadStatusData()
         val selectedDate = sdf.parse(_uiState.value.selectedDate) ?: Date()
+        loadStatusDataForDate(selectedDate)
         loadWeeklyInOutData(selectedDate)
     }
 
@@ -121,8 +121,8 @@ class HomeViewModel : ViewModel() {
                     notifications = getSampleNotifications()
                 )
             }
-            loadStatusData()
             val selectedDate = sdf.parse(_uiState.value.selectedDate) ?: Date()
+            loadStatusDataForDate(selectedDate)
             loadWeeklyInOutData(selectedDate)
         }
     }
@@ -168,8 +168,27 @@ class HomeViewModel : ViewModel() {
     }
 
 
-    private fun loadStatusData() {
+    private fun loadStatusDataForDate(date: Date) {
         viewModelScope.launch {
+            val dateString = apiSdf.format(date)
+            homeRepository.getNoteCounts(dateString)
+                .onSuccess { data ->
+                    _uiState.update { currentState ->
+                        currentState.copy(status = currentState.status.copy(
+                            inboundCount = data.receivingCount,
+                            outboundCount = data.shippingCount
+                        ))
+                    }
+                }.onFailure {
+                    Log.e("HomeViewModel", "Error loading note counts", it)
+                     _uiState.update { currentState ->
+                        currentState.copy(status = currentState.status.copy(
+                            inboundCount = 0,
+                            outboundCount = 0
+                        ))
+                    }
+                }
+
             val allInventoryItems = mutableListOf<InventoryOnHandItem>()
             inventoryRepository.fetchInventoryList("수원", null, null, null, null, 0, 100)
                 .onSuccess {
@@ -210,26 +229,6 @@ class HomeViewModel : ViewModel() {
     }
 
 
-    private fun updateStatusForDate(dateMillis: Long) {
-        val selectedDateStr = sdf.format(Date(dateMillis))
-        val todayStr = sdf.format(Date())
-
-        val newStatus = if (selectedDateStr == todayStr) {
-            // Restore original counts for today
-            StatusData(inboundCount = 12, outboundCount = 8, lowStockCount = _uiState.value.status.lowStockCount, requestCount = _uiState.value.status.requestCount)
-        } else {
-            // Generate random data for other dates to simulate fetching new data
-            StatusData(
-                inboundCount = Random.nextInt(0, 21),
-                outboundCount = Random.nextInt(0, 16),
-                lowStockCount = _uiState.value.status.lowStockCount, // Keep other statuses same
-                requestCount = _uiState.value.status.requestCount
-            )
-        }
-        _uiState.update { it.copy(status = newStatus) }
-    }
-
-
     fun onEvent(event: HomeEvent) {
         when (event) {
             is HomeEvent.ShowDatePicker -> _uiState.update { it.copy(isDatePickerVisible = true) }
@@ -245,7 +244,7 @@ class HomeViewModel : ViewModel() {
                         isTodaySelected = newDate == todayDate
                     )
                 }
-                updateStatusForDate(event.dateMillis)
+                loadStatusDataForDate(selectedDate)
                 loadWeeklyInOutData(selectedDate)
             }
             is HomeEvent.ShowNotificationDialog -> _uiState.update { it.copy(isNotificationDialogVisible = true) }

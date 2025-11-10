@@ -1,5 +1,6 @@
 package com.ljs.and.data.remote
 
+import com.ljs.and.data.model.NoteCountsResponse
 import com.ljs.and.data.model.ReceivingResponse
 import com.ljs.and.data.model.ShippingResponse
 import retrofit2.http.GET
@@ -28,4 +29,9 @@ interface HomeApiService {
         @Query("size") size: Int = 100,
         @Query("sort") sort: String? = null
     ): ReceivingResponse
+
+    @GET("api/v1/summary/note-counts")
+    suspend fun getNoteCounts(
+        @Query("requestDate") requestDate: String
+    ): NoteCountsResponse
 }

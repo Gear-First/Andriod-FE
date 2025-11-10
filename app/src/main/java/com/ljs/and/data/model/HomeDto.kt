@@ -55,3 +55,16 @@ data class ReceivingItem(
     @SerializedName("expectedReceiveDate") val expectedReceiveDate: String?,
     @SerializedName("completedAt") val completedAt: String?
 )
+
+data class NoteCountsResponse(
+    @SerializedName("status") val status: Int,
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String,
+    @SerializedName("data") val data: NoteCountsData?
+)
+
+data class NoteCountsData(
+    @SerializedName("date") val date: String,
+    @SerializedName("receivingCount") val receivingCount: Int,
+    @SerializedName("shippingCount") val shippingCount: Int
+)

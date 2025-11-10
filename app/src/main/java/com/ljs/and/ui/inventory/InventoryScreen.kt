@@ -1,5 +1,6 @@
 package com.ljs.and.ui.inventory
 
+import com.ljs.and.ui.Screen
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
@@ -32,7 +33,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.ljs.and.data.model.InventoryOnHandItem
-import com.ljs.and.ui.Screen
 import com.ljs.and.ui.theme.AndTheme
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -112,11 +112,11 @@ fun InventoryScreen(
                         if (item.lowStock) {
                             navController.navigate(
                                 Screen.InventoryRequestForm.createRoute(
-                                    partId = item.part.id,
-                                    partName = item.part.name,
-                                    partCode = item.part.code,
-                                    price = item.price,
-                                    safetyStockQty = item.safetyStockQty
+                                    item.part.id,
+                                    item.part.name,
+                                    item.part.code,
+                                    item.price,
+                                    item.safetyStockQty
                                 )
                             )
                         }

@@ -92,7 +92,7 @@ fun InventoryRequestScreen(
         // 하단 버튼
         Button(
             onClick = { 
-                navController.navigate(Screen.InventoryRequestForm.createRoute(0L, null, null, 0, 0))
+                navController.navigate(Screen.InventoryRequestForm.route)
             },
             modifier = Modifier
                 .fillMaxWidth()

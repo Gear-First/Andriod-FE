@@ -81,7 +81,7 @@ class InventoryViewModel : ViewModel() {
         viewModelScope.launch {
             _inventoryState.update { it.copy(isLoading = true) }
             repository.fetchInventoryList(
-                warehouseCode = "서울",
+                warehouseCode = "수원",
                 partKeyword = null, supplierName = null, minQty = null, maxQty = null,
                 page = page, size = 20
             ).onSuccess { apiResponse ->

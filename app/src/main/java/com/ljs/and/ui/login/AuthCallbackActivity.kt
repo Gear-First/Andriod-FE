@@ -2,6 +2,7 @@ package com.ljs.and.ui.login
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Base64
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
@@ -46,12 +47,16 @@ class AuthCallbackActivity : ComponentActivity() {
             if (code != null && state != null && state == AuthManager.state) {
                 lifecycleScope.launch {
                     try {
+                        // BASIC 인증 헤더 추가
+                        val credentials = "gearfirst-client-mobile:secret"
+                        val basicAuth = "Basic " + Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)
+
                         // 1. 토큰 교환
                         val tokenResponse = authApiService.exchangeToken(
+                            authorization = basicAuth,
                             grantType = "authorization_code",
                             code = code,
                             redirectUri = "gearfirst://callback",
-                            clientId = "gearfirst-client-mobile",
                             codeVerifier = AuthManager.codeVerifier!!
                         )
                         val accessToken = tokenResponse.accessToken

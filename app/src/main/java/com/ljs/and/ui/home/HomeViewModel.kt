@@ -171,7 +171,7 @@ class HomeViewModel : ViewModel() {
     private fun loadStatusData() {
         viewModelScope.launch {
             val allInventoryItems = mutableListOf<InventoryOnHandItem>()
-            inventoryRepository.fetchInventoryList("서울", null, null, null, null, 0, 100)
+            inventoryRepository.fetchInventoryList("수원", null, null, null, null, 0, 100)
                 .onSuccess {
                     if (it.success) {
                         allInventoryItems.addAll(it.data?.items ?: emptyList())
@@ -179,7 +179,7 @@ class HomeViewModel : ViewModel() {
                 }
 
             val allPurchaseOrderItems = mutableListOf<PurchaseOrder>()
-            inventoryRepository.fetchBranchOrders(1, "test", "팀장", "서울", "본사", null, null, 0, 100)
+            inventoryRepository.fetchBranchOrders(4, "이지수", "팀장", "수원", "창고", null, null, 0, 100)
                 .onSuccess {
                     if (it.success) {
                         allPurchaseOrderItems.addAll(it.data?.content ?: emptyList())

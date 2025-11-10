@@ -110,7 +110,7 @@ fun InventoryRequestScreen(
 @Composable
 internal fun RequestFilterDropdown(selectedOption: String, onOptionSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val options = listOf("전체", "대기", "승인")
+    val options = listOf("전체", "대기", "승인", "반려")
 
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
         Row(
@@ -178,7 +178,7 @@ fun StatusButton(status: String, modifier: Modifier = Modifier) {
     val (text, color) = when (status) {
         "PENDING" -> "대기" to Color.Red
         "APPROVED" -> "승인" to Color(0xFF007BFF)
-        "COMPLETED" -> "완료" to Color.Gray
+        "REJECTED" -> "반려" to Color.Gray
         else -> status to Color.Gray
     }
     OutlinedButton(

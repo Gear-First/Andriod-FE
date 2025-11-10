@@ -38,9 +38,9 @@ fun InventoryRequestFormScreen(
 ) {
     val isPreFilled = partId != 0L
 
+    var partIdState by remember { mutableStateOf(if (isPreFilled) partId.toString() else "") }
     var partNameState by remember { mutableStateOf(partName ?: "") }
     var partCodeState by remember { mutableStateOf(partCode ?: "") }
-    val partIdState = if(isPreFilled) partId else 0L 
     val priceState = if(isPreFilled) price else 0
     
     var requestQuantity by remember { mutableStateOf("") }
@@ -51,6 +51,7 @@ fun InventoryRequestFormScreen(
 
     val isFormValid by remember {
         derivedStateOf {
+            (partIdState.toLongOrNull() ?: 0L) > 0L &&
             partNameState.isNotBlank() &&
             partCodeState.isNotBlank() &&
             (requestQuantity.toIntOrNull() ?: 0) > 0
@@ -104,6 +105,14 @@ fun InventoryRequestFormScreen(
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        TitledTextField(
+                            label = "부품아이디",
+                            value = partIdState,
+                            onValueChange = { partIdState = it },
+                            readOnly = isPreFilled,
+                            keyboardType = KeyboardType.Number
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
                         TitledTextField(label = "부품명", value = partNameState, onValueChange = { partNameState = it }, readOnly = isPreFilled)
                         Spacer(modifier = Modifier.height(16.dp))
                         TitledTextField(label = "부품코드", value = partCodeState, onValueChange = { partCodeState = it }, readOnly = isPreFilled)
@@ -119,7 +128,7 @@ fun InventoryRequestFormScreen(
                     onClick = {
                         val quantity = requestQuantity.toIntOrNull()
                         if (isFormValid && quantity != null) {
-                            viewModel.createPurchaseOrder(partIdState, partNameState, partCodeState, priceState, quantity)
+                            viewModel.createPurchaseOrder(partIdState.toLong(), partNameState, partCodeState, priceState, quantity)
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),

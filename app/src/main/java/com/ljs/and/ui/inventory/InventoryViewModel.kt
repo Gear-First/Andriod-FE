@@ -71,6 +71,7 @@ class InventoryViewModel : ViewModel() {
         val filteredList = when (filter) {
             "대기" -> originalRequestList.filter { it.status == "PENDING" }
             "승인" -> originalRequestList.filter { it.status == "APPROVED" } // 예시 상태
+            "반려" -> originalRequestList.filter { it.status == "REJECTED" } // 예시 상태
             else -> originalRequestList
         }
         _requestState.update { it.copy(selectedFilter = filter, requestList = filteredList) }
@@ -109,7 +110,7 @@ class InventoryViewModel : ViewModel() {
         viewModelScope.launch {
             _requestState.update { it.copy(isLoading = true) }
             repository.fetchBranchOrders(
-                userId = 1, username = "test", rank = "팀장", region = "서울", workType = "본사",
+                userId = 4, username = "이지수", rank = "팀장", region = "수원", workType = "창고",
                 startDate = null, endDate = null, page = 0, size = 100 // 모든 내역을 가져오기 위해 큰 size 사용
             ).onSuccess { apiResponse ->
                 if (apiResponse.success && apiResponse.data != null) {
@@ -136,16 +137,17 @@ class InventoryViewModel : ViewModel() {
             _purchaseOrderCreationState.update { it.copy(isLoading = true) }
 
             val request = PurchaseOrderRequest(
-                vehicleNumber = "11가1111",
-                vehicleModel = "쏘나타",
-                receiptNum = "R-" + System.currentTimeMillis(),
+                vehicleNumber = "",
+                vehicleModel = "",
+//                receiptNum = "R-" + System.currentTimeMillis(),
+                receiptNum = "",
                 items = listOf(
                     PurchaseOrderItemRequest(partId, partName, partCode, price, quantity)
                 )
             )
 
             repository.submitPurchaseOrder(
-                userId = 1, username = "test", rank = "팀장", region = "서울", workType = "본사",
+                userId = 4, username = "이지수", rank = "팀장", region = "수원", workType = "창고",
                 request = request
             ).onSuccess { apiResponse ->
                 if (apiResponse.success) {

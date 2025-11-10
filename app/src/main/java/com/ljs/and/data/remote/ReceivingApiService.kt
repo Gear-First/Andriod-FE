@@ -43,11 +43,8 @@ interface ReceivingApiService {
         @Query("dateFrom") dateFrom: String?,
         @Query("dateTo") dateTo: String?,
         @Query("warehouseCode") warehouseCode: String?,
-        @Query("receivingNo") receivingNo: String?,
-        @Query("supplierName") supplierName: String?,
         @Query("page") page: Int,
-        @Query("size") size: Int,
-        @Query("sort") sort: List<String>?
+        @Query("size") size: Int
     ): ApiResponse<PagedReceivingNotes>
 
     @GET("api/v1/receiving/not-done")
@@ -57,8 +54,7 @@ interface ReceivingApiService {
         @Query("dateTo") dateTo: String?,
         @Query("warehouseCode") warehouseCode: String?,
         @Query("page") page: Int,
-        @Query("size") size: Int,
-        @Query("sort") sort: List<String>?
+        @Query("size") size: Int
     ): ApiResponse<PagedReceivingNotes>
 
     @GET("api/v1/receiving/done")
@@ -68,7 +64,6 @@ interface ReceivingApiService {
         @Query("dateTo") dateTo: String?,
         @Query("warehouseCode") warehouseCode: String?,
         @Query("page") page: Int,
-        @Query("size") size: Int,
-        @Query("sort") sort: List<String>?
+        @Query("size") size: Int
     ): ApiResponse<PagedReceivingNotes>
 }

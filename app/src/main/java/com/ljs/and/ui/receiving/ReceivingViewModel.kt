@@ -63,11 +63,8 @@ class ReceivingViewModel(private val repository: ReceivingRepository) : ViewMode
                     dateFrom = null,
                     dateTo = null,
                     warehouseCode = warehouseCode,
-                    receivingNo = null,
-                    supplierName = null,
                     page = 0,
-                    size = 20,
-                    sort = null
+                    size = 20
                 )
                 if (response.success) {
                     val newItems = response.data?.items ?: emptyList()
@@ -200,8 +197,8 @@ class ReceivingViewModel(private val repository: ReceivingRepository) : ViewMode
             Log.d(TAG, "Refreshing all lists...")
 
             try {
-                val notDoneDeferred = async { repository.getNotDoneReceivingNotes(date, dateFrom, dateTo, warehouseCode, 0, 20, null) }
-                val doneDeferred = async { repository.getDoneReceivingNotes(date, dateFrom, dateTo, warehouseCode, 0, 20, null) }
+                val notDoneDeferred = async { repository.getNotDoneReceivingNotes(date, dateFrom, dateTo, warehouseCode, 0, 20) }
+                val doneDeferred = async { repository.getDoneReceivingNotes(date, dateFrom, dateTo, warehouseCode, 0, 20) }
 
                 val notDoneResponse = notDoneDeferred.await()
                 val doneResponse = doneDeferred.await()
@@ -237,7 +234,7 @@ class ReceivingViewModel(private val repository: ReceivingRepository) : ViewMode
             Log.d(TAG, "Requesting not-done notes: page=$pageToLoad, date=$date, warehouseCode=$warehouseCode")
 
             try {
-                val response = repository.getNotDoneReceivingNotes(date, dateFrom, dateTo, warehouseCode, pageToLoad, 20, null)
+                val response = repository.getNotDoneReceivingNotes(date, dateFrom, dateTo, warehouseCode, pageToLoad, 20)
                 if (response.success) {
                     val newItems = response.data?.items ?: emptyList()
                     Log.d(TAG, "Successfully loaded ${newItems.size} not-done items.")
@@ -269,7 +266,7 @@ class ReceivingViewModel(private val repository: ReceivingRepository) : ViewMode
             Log.d(TAG, "Requesting done notes: page=$pageToLoad, date=$date, warehouseCode=$warehouseCode")
 
             try {
-                val response = repository.getDoneReceivingNotes(date, dateFrom, dateTo, warehouseCode, pageToLoad, 20, null)
+                val response = repository.getDoneReceivingNotes(date, dateFrom, dateTo, warehouseCode, pageToLoad, 20)
                 if (response.success) {
                     val newItems = response.data?.items ?: emptyList()
                     Log.d(TAG, "Successfully loaded ${newItems.size} done items.")
@@ -311,7 +308,7 @@ class ReceivingViewModel(private val repository: ReceivingRepository) : ViewMode
             }
         }
     }
-
+    
     fun updateReceivingLine(lineId: Long, inspectedQty: Int, rejected: Boolean, lineRemark: String?) {
         val noteId = uiState.value.selectedReceivingNoteDetail?.noteId ?: return
 

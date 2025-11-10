@@ -34,13 +34,10 @@ class ReceivingRepository(private val apiService: ReceivingApiService) {
         dateFrom: String?,
         dateTo: String?,
         warehouseCode: String?,
-        receivingNo: String?,
-        supplierName: String?,
         page: Int,
-        size: Int,
-        sort: List<String>?
+        size: Int
     ): ApiResponse<PagedReceivingNotes> {
-        return apiService.getReceivingNotes(q, status, date, dateFrom, dateTo, warehouseCode, receivingNo, supplierName, page, size, sort)
+        return apiService.getReceivingNotes(q, status, date, dateFrom, dateTo, warehouseCode, page, size)
     }
 
     suspend fun getNotDoneReceivingNotes(
@@ -49,10 +46,9 @@ class ReceivingRepository(private val apiService: ReceivingApiService) {
         dateTo: String?,
         warehouseCode: String?,
         page: Int,
-        size: Int,
-        sort: List<String>?
+        size: Int
     ): ApiResponse<PagedReceivingNotes> {
-        return apiService.getNotDoneReceivingNotes(date, dateFrom, dateTo, warehouseCode, page, size, sort)
+        return apiService.getNotDoneReceivingNotes(date, dateFrom, dateTo, warehouseCode, page, size)
     }
 
     suspend fun getDoneReceivingNotes(
@@ -61,9 +57,8 @@ class ReceivingRepository(private val apiService: ReceivingApiService) {
         dateTo: String?,
         warehouseCode: String?,
         page: Int,
-        size: Int,
-        sort: List<String>?
+        size: Int
     ): ApiResponse<PagedReceivingNotes> {
-        return apiService.getDoneReceivingNotes(date, dateFrom, dateTo, warehouseCode, page, size, sort)
+        return apiService.getDoneReceivingNotes(date, dateFrom, dateTo, warehouseCode, page, size)
     }
 }

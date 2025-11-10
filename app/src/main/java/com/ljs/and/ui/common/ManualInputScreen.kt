@@ -160,7 +160,7 @@ fun ManualInputScreen(
                             TitledTextField(label = "부품명", value = shippingLine?.product?.name ?: "", onValueChange = {}, readOnly = true)
                             TitledTextField(label = "부품코드", value = shippingLine?.product?.lot ?: "", onValueChange = {}, readOnly = true)
                             TitledTextField(label = "출고번호", value = shippingNote?.shippingNo ?: "", onValueChange = {}, readOnly = true)
-                            TitledTextField(label = "요청수량", value = shippingLine?.orderedQty.toString(), onValueChange = {}, readOnly = true)
+                            TitledTextField(label = "요청수량", value = orderedQty.toString(), onValueChange = {}, readOnly = true)
                         }
                     }
                 }
@@ -215,10 +215,10 @@ fun ManualInputScreen(
                     onComplete = {
                         if (isReceiving && rejected) {
                             receivingViewModel.processRejectedItemAndReRequest(lineId, orderedQty, currentLineRemark)
-                            navController.popBackStack(Screen.ReceivingInspection.createRoute(false), inclusive = false)
+                            navController.popBackStack(Screen.ReceivingInspection.createRoute(noteId, false), inclusive = false)
                         } else {
                             try {
-                                val targetRoute = if (isReceiving) Screen.ReceivingInspection.createRoute(false) else Screen.ReleasingPicking.createRoute(noteId, false)
+                                val targetRoute = if (isReceiving) Screen.ReceivingInspection.createRoute(noteId, false) else Screen.ReleasingPicking.createRoute(noteId, false)
                                 navController.getBackStackEntry(targetRoute).savedStateHandle.let {
                                     val qty = quantity.toIntOrNull() ?: 0
                                     it["lineId"] = lineId

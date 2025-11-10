@@ -40,8 +40,13 @@ import kotlinx.coroutines.delay
 fun ReceivingInspectionScreen(
     navController: NavController,
     viewModel: ReceivingViewModel = viewModel(factory = ReceivingViewModelFactory()),
+    noteId: Long,
     isReadOnly: Boolean
 ) {
+    LaunchedEffect(noteId) {
+        viewModel.loadReceivingNoteDetail(noteId)
+    }
+
     val uiState by viewModel.uiState.collectAsState()
     val selectedNoteDetail = uiState.selectedReceivingNoteDetail
     val lifecycleOwner = LocalLifecycleOwner.current

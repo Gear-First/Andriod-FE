@@ -28,6 +28,7 @@ fun SplashScreen(navController: NavController) {
         } else {
             Screen.Login.route
         }
+//        val destination = Screen.Home.route // Directly navigate to home
         navController.navigate(destination) {
             popUpTo(Screen.Splash.route) { inclusive = true }
         }

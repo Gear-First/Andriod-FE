@@ -232,7 +232,7 @@ fun InfoListItem(icon: ImageVector, title: String, content: String, time: String
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(24.dp),
-            tint = Color(0xFF007BFF)
+            tint = Color(0xFF111827)
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {

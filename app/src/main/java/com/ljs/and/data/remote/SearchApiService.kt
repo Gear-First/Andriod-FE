@@ -1,35 +1,38 @@
 package com.ljs.and.data.remote
 
+import com.ljs.and.data.model.ApiResponse
 import com.ljs.and.data.model.InventoryItem
+import com.ljs.and.data.model.ReceivingItem
+import com.ljs.and.data.model.ShippingItem
 import retrofit2.http.GET
 import retrofit2.http.Query
 
 // Generic response wrappers
-data class ApiResponse<T>(
-    val data: DataWrapper<T>
-)
-
-data class DataWrapper<T>(
-    val items: List<T>
-)
-
-// DTO for Receiving API response
-data class ReceivingItem(
-    val receivingNo: String,
-    val supplierName: String?,
-    val warehouseCode: String,
-    val status: String,
-    val requestedAt: String
-)
-
-// DTO for Shipping API response
-data class ShippingItem(
-    val shippingNo: String,
-    val branchName: String?,
-    val warehouseCode: String,
-    val status: String,
-    val requestedAt: String
-)
+//data class ApiResponse<T>(
+//    val data: DataWrapper<T>
+//)
+//
+//data class DataWrapper<T>(
+//    val items: List<T>
+//)
+//
+//// DTO for Receiving API response
+//data class ReceivingItem(
+//    val receivingNo: String,
+//    val supplierName: String?,
+//    val warehouseCode: String,
+//    val status: String,
+//    val requestedAt: String
+//)
+//
+//// DTO for Shipping API response
+//data class ShippingItem(
+//    val shippingNo: String,
+//    val branchName: String?,
+//    val warehouseCode: String,
+//    val status: String,
+//    val requestedAt: String
+//)
 
 interface SearchApiService {
 

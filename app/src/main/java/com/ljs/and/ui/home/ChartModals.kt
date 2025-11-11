@@ -1,5 +1,6 @@
 package com.ljs.and.ui.home
 
+import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.Popup
+import com.ljs.and.data.model.InOutData
 import kotlin.math.atan2
 import kotlin.math.max
 
@@ -153,6 +155,8 @@ fun InventoryLegend(data: List<InventoryItemData>) {
 
 @Composable
 fun WeeklyInOutChartModal(weeklyData: List<InOutData>, dateRange: String, onDismiss: () -> Unit) {
+    Log.d("WeeklyChartData", "Data for chart: $weeklyData")
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(16.dp),
@@ -183,18 +187,19 @@ fun WeeklyInOutChartModal(weeklyData: List<InOutData>, dateRange: String, onDism
 
 @Composable
 fun BidirectionalBarChart(data: List<InOutData>) {
-    val maxVal = maxOf(data.maxOfOrNull { maxOf(it.inbound, it.outbound) } ?: 0f, 1f)
+    val maxInbound = maxOf(data.maxOfOrNull { it.inbound } ?: 0f, 1f)
+    val maxOutbound = maxOf(data.maxOfOrNull { it.outbound } ?: 0f, 1f)
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("입고", fontSize = 14.sp, color = Color.Gray)
         Spacer(modifier = Modifier.height(8.dp))
-        BarChartRow(data = data.map { it.inbound }, maxVal = maxVal, color = Color(0xFF64B5F6), isTop = true)
+        BarChartRow(data = data.map { it.inbound }, maxVal = maxInbound, color = Color(0xFF64B5F6), isTop = true)
         Spacer(modifier = Modifier.height(16.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             data.forEach { Text(it.day, color = Color.Gray, fontSize = 12.sp) }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        BarChartRow(data = data.map { it.outbound }, maxVal = maxVal, color = Color(0xFF90CAF9), isTop = false)
+        BarChartRow(data = data.map { it.outbound }, maxVal = maxOutbound, color = Color(0xFF90CAF9), isTop = false)
         Spacer(modifier = Modifier.height(8.dp))
         Text("출고", fontSize = 14.sp, color = Color.Gray)
     }

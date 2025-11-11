@@ -112,11 +112,11 @@ fun InventoryScreen(
                         if (item.lowStock) {
                             navController.navigate(
                                 Screen.InventoryRequestForm.createRoute(
-                                    item.part.id,
-                                    item.part.name,
-                                    item.part.code,
-                                    item.price,
-                                    item.safetyStockQty
+                                    partId = item.part.id,
+                                    partName = item.part.name,
+                                    partCode = item.part.code,
+                                    price = 0, // 가격 정보가 없으므로 0으로 전달
+                                    safetyStockQty = item.safetyStockQty
                                 )
                             )
                         }

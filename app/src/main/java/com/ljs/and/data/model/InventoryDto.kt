@@ -31,7 +31,9 @@ data class InventoryOnHandItem(
     @SerializedName("price")
     val price: Int,
     @SerializedName("priceTotal")
-    val priceTotal: Long
+    val priceTotal: Long,
+    @SerializedName("lastReceivingDate")
+    val lastReceivingDate: String?
 )
 
 data class Part(

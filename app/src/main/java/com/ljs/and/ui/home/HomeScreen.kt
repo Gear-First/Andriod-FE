@@ -13,14 +13,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DonutLarge
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.AlertDialog
@@ -337,19 +336,9 @@ fun QuickActions(navController: NavController) {
         horizontalArrangement = Arrangement.SpaceAround
     ) {
         QuickAction(
-            icon = Icons.Default.Add,
-            label = "입고 등록",
-            onClick = { navController.navigate(Screen.ManualInput.createRoute(flowType = "receiving", noteId= -1L, lineId = -1L, currentQty = 0, orderedQty = 0, lineRemark = null)) }
-        )
-        QuickAction(
-            icon = Icons.Default.ArrowForward,
-            label = "출고 등록",
-            onClick = { navController.navigate(Screen.ManualInput.createRoute(flowType = "releasing", noteId= -1L, lineId = -1L, currentQty = 0, orderedQty = 0, lineRemark = null)) }
-        )
-        QuickAction(
-            icon = Icons.Default.Check,
-            label = "재고 신청",
-            onClick = { navController.navigate(Screen.InventoryHome.createRoute(filter = "재고신청")) }
+            icon = Icons.Default.QrCodeScanner,
+            label = "재고신청(QR)",
+            onClick = { navController.navigate(Screen.BarcodeScan.route) }
         )
     }
 }

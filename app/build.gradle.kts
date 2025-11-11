@@ -36,10 +36,13 @@ android {
     }
     buildFeatures {
         compose = true
+        viewBinding = true
     }
 }
 
 dependencies {
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Retrofit
@@ -65,6 +68,16 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.animation.core.lint)
     implementation("androidx.browser:browser:1.8.0")
+
+    // CameraX
+    implementation("androidx.camera:camera-core:1.3.1")
+    implementation("androidx.camera:camera-camera2:1.3.1")
+    implementation("androidx.camera:camera-lifecycle:1.3.1")
+    implementation("androidx.camera:camera-view:1.3.1")
+
+    // ML Kit Barcode Scanning
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -1,22 +1,17 @@
 package com.ljs.and.ui
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -32,7 +27,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -59,6 +53,8 @@ import com.ljs.and.ui.releasing.ReleasingScreen
 import com.ljs.and.ui.releasing.ReleasingViewModel
 import com.ljs.and.ui.releasing.ReleasingViewModelFactory
 import com.ljs.and.ui.search.SearchResultScreen
+import java.net.URLDecoder
+import java.net.URLEncoder
 
 sealed class Screen(val route: String) {
     object Splash : Screen("splash")
@@ -75,17 +71,20 @@ sealed class Screen(val route: String) {
         }
     }
     object More : Screen("more")
-    object InventoryRequestForm : Screen("inventory_request?partId={partId}&partName={partName}&partCode={partCode}&price={price}&safetyStockQty={safetyStockQty}") {
+    object InventoryRequestForm : Screen("inventory_request_form?partId={partId}&partName={partName}&partCode={partCode}&price={price}&safetyStockQty={safetyStockQty}&qr={qr}") {
         fun createRoute(partId: Long, partName: String?, partCode: String?, price: Int, safetyStockQty: Int): String {
-            var route = "inventory_request?partId=$partId&price=$price&safetyStockQty=$safetyStockQty"
-            partName?.let { route += "&partName=$it" }
-            partCode?.let { route += "&partCode=$it" }
+            var route = "inventory_request_form?partId=$partId&price=$price&safetyStockQty=$safetyStockQty"
+            partName?.let { route += "&partName=${URLEncoder.encode(it, "UTF-8")}" }
+            partCode?.let { route += "&partCode=${URLEncoder.encode(it, "UTF-8")}" }
             return route
         }
+
+        fun createRoute(qr: String): String {
+            return "inventory_request_form?qr=${URLEncoder.encode(qr, "UTF-8")}"
+        }
     }
-    object BarcodeScan : Screen("barcodescan/{flowType}?noteId={noteId}&lineId={lineId}&currentQty={currentQty}&orderedQty={orderedQty}&lineRemark={lineRemark}") {
-        fun createRoute(flowType: String, noteId: Long = -1L, lineId: Long = -1L, currentQty: Int = 0, orderedQty: Int = 0, lineRemark: String? = null) = "barcodescan/$flowType?noteId=$noteId&lineId=$lineId&currentQty=$currentQty&orderedQty=$orderedQty&lineRemark=$lineRemark"
-    }
+    object BarcodeScan : Screen("barcode_scan")
+
     object ManualInput : Screen("manual_input/{flowType}?noteId={noteId}&lineId={lineId}&currentQty={currentQty}&orderedQty={orderedQty}&lineRemark={lineRemark}") {
         fun createRoute(flowType: String, noteId: Long, lineId: Long, currentQty: Int, orderedQty: Int, lineRemark: String?) = "manual_input/$flowType?noteId=$noteId&lineId=$lineId&currentQty=$currentQty&orderedQty=$orderedQty&lineRemark=$lineRemark"
     }
@@ -115,6 +114,7 @@ private val bottomNavItems = listOf(
     Screen.More to Pair("더보기", Icons.Filled.MoreVert)
 )
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
@@ -178,6 +178,7 @@ private fun BottomNavigationBar(navController: NavHostController) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun NavigationGraph(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Screen.Splash.route) {
@@ -241,68 +242,39 @@ private fun NavigationGraph(navController: NavHostController) {
             composable(
                 route = Screen.InventoryRequestForm.route,
                 arguments = listOf(
-                    navArgument("partId") { 
-                        type = NavType.LongType
-                        defaultValue = 0L
-                    },
-                    navArgument("partName") { 
-                        type = NavType.StringType
-                        nullable = true 
-                    },
-                    navArgument("partCode") { 
-                        type = NavType.StringType
-                        nullable = true 
-                    },
-                    navArgument("price") { 
-                        type = NavType.IntType
-                        defaultValue = 0
-                    },
-                    navArgument("safetyStockQty") { 
-                        type = NavType.IntType
-                        defaultValue = 0
-                    }
+                    navArgument("partId") { type = NavType.LongType; defaultValue = 0L },
+                    navArgument("partName") { type = NavType.StringType; nullable = true },
+                    navArgument("partCode") { type = NavType.StringType; nullable = true },
+                    navArgument("price") { type = NavType.IntType; defaultValue = 0 },
+                    navArgument("safetyStockQty") { type = NavType.IntType; defaultValue = 0 },
+                    navArgument("qr") { type = NavType.StringType; nullable = true }
                 )
             ) { backStackEntry ->
                 val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Screen.Inventory.route) }
                 val viewModel: InventoryViewModel = viewModel(parentEntry)
+
+                val qr = backStackEntry.arguments?.getString("qr")?.let { URLDecoder.decode(it, "UTF-8") }
+                val partName = backStackEntry.arguments?.getString("partName")?.let { URLDecoder.decode(it, "UTF-8") }
+                val partCode = backStackEntry.arguments?.getString("partCode")?.let { URLDecoder.decode(it, "UTF-8") }
+
                 InventoryRequestFormScreen(
-                    navController = navController, 
+                    navController = navController,
                     viewModel = viewModel,
-                    partId = backStackEntry.arguments?.getLong("partId") ?: 0L,
-                    partName = backStackEntry.arguments?.getString("partName"),
-                    partCode = backStackEntry.arguments?.getString("partCode"),
-                    price = backStackEntry.arguments?.getInt("price") ?: 0,
-                    safetyStockQty = backStackEntry.arguments?.getInt("safetyStockQty") ?: 0
+                    partId = backStackEntry.arguments?.getLong("partId"),
+                    partName = partName,
+                    partCode = partCode,
+                    price = backStackEntry.arguments?.getInt("price"),
+                    safetyStockQty = backStackEntry.arguments?.getInt("safetyStockQty"),
+                    qr = qr
                 )
             }
         }
         composable(Screen.More.route) { MoreScreen(navController = navController) }
 
-        composable(
-            route = Screen.BarcodeScan.route,
-            arguments = listOf(
-                navArgument("flowType") { type = NavType.StringType },
-                navArgument("noteId") { type = NavType.LongType; defaultValue = -1L },
-                navArgument("lineId") { type = NavType.LongType; defaultValue = -1L },
-                navArgument("currentQty") { type = NavType.IntType; defaultValue = 0 },
-                navArgument("orderedQty") { type = NavType.IntType; defaultValue = 0 },
-                navArgument("lineRemark") { type = NavType.StringType; nullable = true }
-            )
-        ) { backStackEntry ->
-            val receivingViewModel: ReceivingViewModel = viewModel(factory = ReceivingViewModelFactory())
-            val releasingViewModel: ReleasingViewModel = viewModel(factory = ReleasingViewModelFactory())
-            BarcodeScanScreen(
-                navController = navController,
-                flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving",
-                noteId = backStackEntry.arguments?.getLong("noteId") ?: -1L,
-                lineId = backStackEntry.arguments?.getLong("lineId") ?: -1L,
-                currentQty = backStackEntry.arguments?.getInt("currentQty") ?: 0,
-                orderedQty = backStackEntry.arguments?.getInt("orderedQty") ?: 0,
-                lineRemark = backStackEntry.arguments?.getString("lineRemark"),
-                receivingViewModel = receivingViewModel,
-                releasingViewModel = releasingViewModel
-            )
+        composable(Screen.BarcodeScan.route) {
+            BarcodeScanScreen(navController = navController)
         }
+
         composable(
             route = Screen.ManualInput.route,
             arguments = listOf(

@@ -341,7 +341,7 @@ fun QuickActions(navController: NavController) {
     ) {
         QuickAction(
             icon = Icons.Default.QrCodeScanner,
-            label = "재고신청(QR)",
+            label = "재고 QR",
             onClick = { navController.navigate(Screen.BarcodeScan.route) },
             modifier = Modifier.weight(1f)
         )

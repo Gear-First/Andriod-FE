@@ -39,7 +39,7 @@ fun LoginScreen(navController: NavController) {
         AuthManager.codeVerifier = codeVerifier
         AuthManager.state = state
 
-        val uri = Uri.parse("http://34.120.215.23/auth/oauth2/authorize").buildUpon()
+        val uri = Uri.parse("http://gearfirst-auth-mobile.duckdns.org/auth/oauth2/authorize").buildUpon()
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("client_id", "gearfirst-client-mobile")
             .appendQueryParameter("redirect_uri", "gearfirst://callback")

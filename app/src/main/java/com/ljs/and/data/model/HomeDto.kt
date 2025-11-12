@@ -2,6 +2,12 @@ package com.ljs.and.data.model
 
 import com.google.gson.annotations.SerializedName
 
+// 재고 현황 차트용 데이터 클래스 (UI 독립적)
+data class TopInventoryItemDto(
+    @SerializedName("name") val name: String,
+    @SerializedName("quantity") val quantity: Int
+)
+
 data class ShippingResponse(
     @SerializedName("status") val status: Int,
     @SerializedName("success") val success: Boolean,

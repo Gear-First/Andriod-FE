@@ -18,10 +18,8 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.DonutLarge
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.AlertDialog
@@ -341,16 +339,6 @@ fun QuickActions(navController: NavController) {
             icon = Icons.Default.QrCodeScanner,
             label = "재고신청(QR)",
             onClick = { navController.navigate(Screen.BarcodeScan.route) }
-        )
-        QuickAction(
-            icon = Icons.Default.Inventory,
-            label = "재고 조회",
-            onClick = { navController.navigate(Screen.Search.createRoute("inventory")) }
-        )
-        QuickAction(
-            icon = Icons.Default.Search,
-            label = "입출고 조회",
-            onClick = { navController.navigate(Screen.Search.createRoute("search")) }
         )
     }
 }

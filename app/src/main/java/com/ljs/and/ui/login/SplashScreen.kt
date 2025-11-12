@@ -23,12 +23,12 @@ fun SplashScreen(navController: NavController) {
 
     LaunchedEffect(Unit) {
         delay(1500) // 1.5 seconds delay
-//        val destination = if (TokenManager.getAccessToken() != null) {
-//            Screen.Home.route
-//        } else {
-//            Screen.Login.route
-//        }
-        val destination = Screen.Home.route // Directly navigate to home
+        val destination = if (TokenManager.getAccessToken() != null) {
+            Screen.Home.route
+        } else {
+            Screen.Login.route
+        }
+//        val destination = Screen.Home.route // Directly navigate to home
         navController.navigate(destination) {
             popUpTo(Screen.Splash.route) { inclusive = true }
         }

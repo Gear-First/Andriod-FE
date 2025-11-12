@@ -128,7 +128,7 @@ fun SearchScreen(
 
                 Button(
                     onClick = { viewModel.search() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF111827)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF)),
                     shape = RoundedCornerShape(30.dp),
                     modifier = Modifier.height(40.dp),
                     contentPadding = PaddingValues(horizontal = 20.dp)
@@ -169,9 +169,9 @@ fun SearchScreen(
 
 @Composable
 fun SearchTabButton(selected: Boolean, onClick: () -> Unit, text: String) {
-    val bgColor = if (selected) Color(0xFF111827) else Color.White
+    val bgColor = if (selected) Color(0xFF007BFF) else Color.White
     val textColor = if (selected) Color.White else Color.Gray
-    val borderColor = if (selected) Color(0xFF111827) else Color(0xFFD0D0D0)
+    val borderColor = if (selected) Color(0xFF007BFF) else Color(0xFFD0D0D0)
 
     Button(
         onClick = onClick,

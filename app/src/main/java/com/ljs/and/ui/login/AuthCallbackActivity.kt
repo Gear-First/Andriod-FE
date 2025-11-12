@@ -29,7 +29,7 @@ class AuthCallbackActivity : ComponentActivity() {
             .build()
 
         Retrofit.Builder()
-            .baseUrl("http://gearfirst-auth-mobile.duckdns.org/auth/")
+            .baseUrl("http://34.120.215.23/auth/")
             .client(httpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -38,10 +38,6 @@ class AuthCallbackActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // ✅ (1) 앱이 브라우저에서 새로 켜질 때를 대비해 AuthManager 초기화
-        AuthManager.init(this)
-        Log.d("AuthCallbackActivity", "Callback data = ${intent.data}")
 
         val data = intent.data
         if (data != null && data.scheme == "gearfirst" && data.host == "callback") {

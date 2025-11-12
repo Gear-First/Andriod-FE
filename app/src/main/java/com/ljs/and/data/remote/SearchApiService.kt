@@ -2,11 +2,37 @@ package com.ljs.and.data.remote
 
 import com.ljs.and.data.model.ApiResponse
 import com.ljs.and.data.model.InventoryItem
-import com.ljs.and.data.model.ItemsResponse
 import com.ljs.and.data.model.ReceivingItem
 import com.ljs.and.data.model.ShippingItem
 import retrofit2.http.GET
 import retrofit2.http.Query
+
+// Generic response wrappers
+//data class ApiResponse<T>(
+//    val data: DataWrapper<T>
+//)
+//
+//data class DataWrapper<T>(
+//    val items: List<T>
+//)
+//
+//// DTO for Receiving API response
+//data class ReceivingItem(
+//    val receivingNo: String,
+//    val supplierName: String?,
+//    val warehouseCode: String,
+//    val status: String,
+//    val requestedAt: String
+//)
+//
+//// DTO for Shipping API response
+//data class ShippingItem(
+//    val shippingNo: String,
+//    val branchName: String?,
+//    val warehouseCode: String,
+//    val status: String,
+//    val requestedAt: String
+//)
 
 interface SearchApiService {
 
@@ -19,7 +45,7 @@ interface SearchApiService {
         @Query("dateTo") dateTo: String?,
         @Query("page") page: Int = 0,
         @Query("size") size: Int = 20
-    ): ApiResponse<ItemsResponse<ReceivingItem>>
+    ): ApiResponse<ReceivingItem>
 
     @GET("/warehouse/api/v1/shipping/notes")
     suspend fun getShippingNotes(
@@ -30,7 +56,7 @@ interface SearchApiService {
         @Query("dateTo") dateTo: String?,
         @Query("page") page: Int = 0,
         @Query("size") size: Int = 20
-    ): ApiResponse<ItemsResponse<ShippingItem>>
+    ): ApiResponse<ShippingItem>
 
     @GET("/warehouse/api/v1/inventory/on-hand")
     suspend fun getInventoryOnHand(
@@ -40,5 +66,5 @@ interface SearchApiService {
         @Query("maxQty") maxQty: Int?,
         @Query("page") page: Int = 0,
         @Query("size") size: Int = 20
-    ): ApiResponse<ItemsResponse<InventoryItem>>
+    ): ApiResponse<InventoryItem>
 }

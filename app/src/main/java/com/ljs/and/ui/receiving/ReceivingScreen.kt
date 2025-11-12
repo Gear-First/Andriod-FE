@@ -342,16 +342,16 @@ fun PendingCard(item: ReceivingNote, onStartInspection: () -> Unit) {
                         .width(330.dp)
                         .height(44.dp),
                     shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, Color.Gray),
+                    border = BorderStroke(1.dp, Color(0xFF111827)),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
+                        containerColor = Color(0xFF111827),
                         contentColor = Color.Gray
                     )
                 ) {
                     Text(
                         "검수 시작",
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF007BFF)
+                        color = Color.White
                     )
                 }
             }

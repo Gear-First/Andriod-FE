@@ -8,7 +8,7 @@ import com.ljs.and.data.model.InOutData
 import com.ljs.and.data.model.InventoryOnHandItem
 import com.ljs.and.data.model.PurchaseOrder
 import com.ljs.and.data.model.UserManager
-import com.ljs.and.data.remote.HomeApiService
+import com.ljs.and.data.remote.fake.FakeHomeApiService
 import com.ljs.and.data.repository.HomeRepository
 import com.ljs.and.data.repository.InventoryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,8 +16,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -26,8 +24,6 @@ import java.util.Locale
 // --- Data Classes (DTOs) ---
 
 data class InventoryItemData(val name: String, val quantity: Int, val color: Color)
-// InOutData is already defined in HomeDto.kt, so we can remove it from here if it's not needed.
-// data class InOutData(val day: String, val inbound: Float, val outbound: Float)
 data class NotificationItem(val title: String, val content: String, val time: String, val type: NotificationType)
 enum class NotificationType {
     NOTICE,
@@ -39,7 +35,7 @@ enum class NotificationType {
 // --- UI State ---
 
 data class HomeUiState(
-    val userName: String = "", // userName 추가
+    val userName: String = "",
     val userEmail: String = "",
     val selectedDate: String = "",
     val isTodaySelected: Boolean = true,
@@ -65,21 +61,14 @@ enum class ChartType {
     WEEKLY
 }
 
-
 // --- ViewModel ---
 
 class HomeViewModel : ViewModel() {
 
     private val inventoryRepository = InventoryRepository()
 
-    private val homeApiService: HomeApiService by lazy {
-        Retrofit.Builder()
-            .baseUrl("http://34.120.215.23/warehouse/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(HomeApiService::class.java)
-    }
-    private val homeRepository = HomeRepository(homeApiService)
+    // Use the fake service for development
+    private val homeRepository = HomeRepository(FakeHomeApiService())
 
     private val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
     private val apiSdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -135,11 +124,7 @@ class HomeViewModel : ViewModel() {
                 .onSuccess {
                     val calendar = Calendar.getInstance()
 
-                    val sortedData = it.sortedBy { data ->
-                        val date = apiSdf.parse(data.day)
-                        calendar.time = date
-                        calendar.get(Calendar.DAY_OF_WEEK)
-                    }.map {
+                    val processedData = it.map {
                         it.copy(day = getKoreanDayOfWeek(it.day))
                     }
 
@@ -151,7 +136,7 @@ class HomeViewModel : ViewModel() {
                     
                     _uiState.update {
                         it.copy(
-                            weeklyInOutData = sortedData,
+                            weeklyInOutData = processedData,
                             weeklyChartDateRange = "$fromDate - $toDate"
                         )
                     }
@@ -177,7 +162,6 @@ class HomeViewModel : ViewModel() {
             else -> ""
         }
     }
-
 
     private fun loadStatusDataForDate(date: Date) {
         viewModelScope.launch {
@@ -238,7 +222,6 @@ class HomeViewModel : ViewModel() {
             }
         }
     }
-
 
     fun onEvent(event: HomeEvent) {
         when (event) {

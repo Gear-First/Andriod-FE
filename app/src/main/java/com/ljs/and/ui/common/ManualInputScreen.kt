@@ -88,13 +88,13 @@ fun ManualInputScreen(
     var rejected by remember { mutableStateOf(false) } // For receiving
     var currentLineRemark by remember { mutableStateOf(lineRemark ?: "") }
 
-    val title = if (isReceiving) "검수 수량 입력" else "검수 수량 입력"
-    val quantityLabel = if (isReceiving) "검수 수량" else "검수 수량"
+    val title = if (isReceiving) "검수 수량 입력" else "피킹 수량 입력"
+    val quantityLabel = if (isReceiving) "검수 수량" else "피킹 수량"
 
     val bottomButtonText = when {
         isReceiving && rejected -> "재입고 신청"
         isReceiving -> "검수 확인"
-        else -> "검수 확인"
+        else -> "피킹 확인"
     }
 
     val isFormValid by derivedStateOf { quantity.toIntOrNull() != null }

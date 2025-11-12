@@ -360,7 +360,7 @@ fun InspectionBottomBar(
                         .fillMaxWidth()
                         .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF111827))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
                 ) {
                     Text("확인", color = Color.White)
                 }

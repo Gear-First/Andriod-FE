@@ -1,14 +1,6 @@
 package com.ljs.and.data.remote
 
 import com.ljs.and.data.model.TokenManager
-import com.ljs.and.data.remote.fake.FakeAuthApiService
-import com.ljs.and.data.remote.fake.FakeHomeApiService
-import com.ljs.and.data.remote.fake.FakeInventoryApiService
-import com.ljs.and.data.remote.fake.FakePurchaseOrderApiService
-import com.ljs.and.data.remote.fake.FakeReceivingApiService
-import com.ljs.and.data.remote.fake.FakeReleasingApiService
-import com.ljs.and.data.remote.fake.FakeSearchApiService
-import com.ljs.and.data.remote.fake.FakeUserApiService
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -52,44 +44,19 @@ object RetrofitClient {
         .build()
 
     // --- API 서비스 --- 
-    val authApiService: AuthApiService by lazy {
-        FakeAuthApiService()
-        // orderRetrofit.create(AuthApiService::class.java)
-    }
-
-    val homeApiService: HomeApiService by lazy {
-        FakeHomeApiService()
-        // warehouseRetrofit.create(HomeApiService::class.java)
-    }
-
-    val userApiService: UserApiService by lazy {
-        FakeUserApiService()
-        // warehouseRetrofit.create(UserApiService::class.java)
-    }
-
     val inventoryApiService: InventoryApiService by lazy {
-        // 발표용 더미 데이터 사용
-        FakeInventoryApiService()
-        // warehouseRetrofit.create(InventoryApiService::class.java)
+        warehouseRetrofit.create(InventoryApiService::class.java)
     }
     val purchaseOrderApiService: PurchaseOrderApiService by lazy {
-        // 발표용 더미 데이터 사용
-        FakePurchaseOrderApiService()
-        // orderRetrofit.create(PurchaseOrderApiService::class.java)
+        orderRetrofit.create(PurchaseOrderApiService::class.java)
     }
     val releasingApiService: ReleasingApiService by lazy {
-        // 발표용 더미 데이터 사용
-        FakeReleasingApiService()
-        // warehouseRetrofit.create(ReleasingApiService::class.java)
+        warehouseRetrofit.create(ReleasingApiService::class.java)
     }
     val receivingApiService: ReceivingApiService by lazy {
-        // 발표용 더미 데이터 사용
-        FakeReceivingApiService()
-        // warehouseRetrofit.create(ReceivingApiService::class.java)
+        warehouseRetrofit.create(ReceivingApiService::class.java)
     }
     val searchApiService: SearchApiService by lazy {
-        // 발표용 더미 데이터 사용
-        FakeSearchApiService()
-        // warehouseRetrofit.create(SearchApiService::class.java)
+        warehouseRetrofit.create(SearchApiService::class.java)
     }
 }

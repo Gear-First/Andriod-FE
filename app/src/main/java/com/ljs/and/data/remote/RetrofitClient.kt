@@ -33,7 +33,7 @@ object RetrofitClient {
     // --- Retrofit 인스턴스 ---
     private val warehouseRetrofit = Retrofit.Builder()
         .baseUrl(WAREHOUSE_BASE_URL)
-        .client(authenticatedClient) // 인증 클라이언트로 변경
+        .client(publicClient) // 인증이 필요 없는 클라이언트 사용
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
@@ -55,8 +55,5 @@ object RetrofitClient {
     }
     val receivingApiService: ReceivingApiService by lazy {
         warehouseRetrofit.create(ReceivingApiService::class.java)
-    }
-    val searchApiService: SearchApiService by lazy {
-        warehouseRetrofit.create(SearchApiService::class.java)
     }
 }

@@ -220,7 +220,7 @@ fun ReceivingTabRow(selectedTabIndex: Int, tabs: List<String>, onTabSelected: (I
     ) {
         tabs.forEachIndexed { index, title ->
             val isSelected = selectedTabIndex == index
-            val containerColor = if (isSelected) Color(0xFF007BFF) else Color.White
+            val containerColor = if (isSelected) Color(0xFF111827) else Color.White
             val contentColor = if (isSelected) Color.White else Color.Black
             val border = if (isSelected) null else BorderStroke(1.dp, Color.LightGray)
 

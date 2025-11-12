@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -137,7 +139,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
 @Composable
 fun HomeTopAppBar(onNotificationClick: () -> Unit) {
     TopAppBar(
-        title = { Text("Gear First", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = Color(0xFF007BFF)) },
+        title = { Text("Gear First", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = Color(0xFF111827)) },
         actions = {
             IconButton(onClick = onNotificationClick) {
                 Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
@@ -315,7 +317,7 @@ fun NotificationListItem(notification: NotificationItem) {
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(24.dp),
-            tint = Color(0xFF007BFF)
+            tint = Color(0xFF111827)
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -335,44 +337,49 @@ fun NotificationListItem(notification: NotificationItem) {
 fun QuickActions(navController: NavController) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceAround
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         QuickAction(
             icon = Icons.Default.QrCodeScanner,
             label = "재고신청(QR)",
-            onClick = { navController.navigate(Screen.BarcodeScan.route) }
+            onClick = { navController.navigate(Screen.BarcodeScan.route) },
+            modifier = Modifier.weight(1f)
         )
         QuickAction(
             icon = Icons.Default.Inventory,
             label = "재고 조회",
-            onClick = { navController.navigate(Screen.Search.createRoute("inventory")) }
+            onClick = { navController.navigate(Screen.Search.createRoute("inventory")) },
+            modifier = Modifier.weight(1f)
         )
         QuickAction(
             icon = Icons.Default.Search,
             label = "입출고 조회",
-            onClick = { navController.navigate(Screen.Search.createRoute("search")) }
+            onClick = { navController.navigate(Screen.Search.createRoute("search")) },
+            modifier = Modifier.weight(1f)
         )
     }
 }
 
 @Composable
-fun QuickAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+fun QuickAction(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(
-        modifier = Modifier
-            .size(120.dp)
+        modifier = modifier
+            .aspectRatio(1f)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Icon(icon, contentDescription = label, modifier = Modifier.size(36.dp))
             Spacer(modifier = Modifier.height(8.dp))
-            Text(label, fontSize = 16.sp)
+            Text(label, fontSize = 16.sp, textAlign = TextAlign.Center)
         }
     }
 }

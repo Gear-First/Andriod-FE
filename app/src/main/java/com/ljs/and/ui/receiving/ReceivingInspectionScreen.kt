@@ -133,7 +133,7 @@ fun ReceivingInspectionScreen(
                     .fillMaxSize()
             ) {
                 InspectionHeader(
-                    supplier = selectedNoteDetail.supplierName ?: "",
+                    supplier = selectedNoteDetail.supplierName,
                     date = selectedNoteDetail.expectedReceiveDate ?: "",
                     inspector = if (isReadOnly) selectedNoteDetail.inspectorName else null
                 )
@@ -303,9 +303,9 @@ fun InspectionItemCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(noteDetail.supplierName ?: "", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("${line.product.name ?: ""} / ${line.product.lot ?: ""}", fontSize = 14.sp)
-                Text("입고 번호: ${noteDetail.receivingNo ?: ""}", fontSize = 12.sp, color = Color.Gray)
+                Text(noteDetail.supplierName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("${line.product.name} / ${line.product.lot}", fontSize = 14.sp)
+                Text("입고 번호: ${noteDetail.receivingNo}", fontSize = 12.sp, color = Color.Gray)
                 Text("요청 수량: ${line.orderedQty}", fontSize = 12.sp, color = Color.Gray)
                 Text("검수 수량: ${line.inspectedQty}", fontSize = 12.sp, color = Color.Gray)
             }
@@ -360,8 +360,7 @@ fun InspectionBottomBar(
                         .fillMaxWidth()
                         .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF111827
-                    ))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
                 ) {
                     Text("확인", color = Color.White)
                 }

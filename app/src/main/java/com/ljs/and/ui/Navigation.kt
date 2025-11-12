@@ -52,6 +52,10 @@ import com.ljs.and.ui.releasing.ReleasingPickingScreen
 import com.ljs.and.ui.releasing.ReleasingScreen
 import com.ljs.and.ui.releasing.ReleasingViewModel
 import com.ljs.and.ui.releasing.ReleasingViewModelFactory
+import com.ljs.and.ui.search.SearchScreen
+import com.ljs.and.ui.search.SearchTab
+import com.ljs.and.ui.search.SearchViewModel
+import com.ljs.and.ui.search.SearchViewModelFactory
 import com.ljs.and.ui.search.SearchResultScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -104,6 +108,10 @@ sealed class Screen(val route: String) {
             return route
         }
     }
+
+    object Search : Screen("search?tab={tab}") {
+        fun createRoute(tab: String) = "search?tab=$tab"
+    }
 }
 
 private val bottomNavItems = listOf(
@@ -129,7 +137,8 @@ fun MainScreen() {
                 Screen.ManualInput.route,
                 Screen.InventoryRequestForm.route,
                 "receiving_inspection/{noteId}?isReadOnly={isReadOnly}", // Hide bottom bar on inspection screen
-                Screen.ReleasingPicking.route
+                Screen.ReleasingPicking.route,
+                Screen.Search.route
             )
             if (showBottomBar) {
                 BottomNavigationBar(navController = navController)
@@ -317,6 +326,19 @@ private fun NavigationGraph(navController: NavHostController) {
                 flowType = backStackEntry.arguments?.getString("flowType") ?: "receiving",
                 initialQuery = backStackEntry.arguments?.getString("query") ?: "",
                 receivingViewModel = receivingViewModel
+            )
+        }
+
+        composable(
+            route = Screen.Search.route,
+            arguments = listOf(navArgument("tab") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val tab = backStackEntry.arguments?.getString("tab") ?: "search"
+            val searchViewModel: SearchViewModel = viewModel(factory = SearchViewModelFactory())
+            searchViewModel.onTabSelected(if (tab == "inventory") SearchTab.INVENTORY else SearchTab.SEARCH)
+            SearchScreen(
+                navController = navController, 
+                viewModel = searchViewModel
             )
         }
     }

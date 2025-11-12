@@ -1,7 +1,6 @@
 package com.ljs.and.ui.inventory
 
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -123,14 +122,10 @@ fun InventoryRequestFormScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(
-                        top = innerPadding.calculateTopPadding(),
-                        bottom = innerPadding.calculateBottomPadding() + 80.dp // 버튼 공간 확보
-                    )
+                    .padding(top = innerPadding.calculateTopPadding() - 15.dp, bottom = innerPadding.calculateBottomPadding())
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                // 기존 카드 입력 필드
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -146,70 +141,33 @@ fun InventoryRequestFormScreen(
                             keyboardType = KeyboardType.Number
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        TitledTextField(
-                            label = "부품명",
-                            value = partNameState,
-                            onValueChange = { partNameState = it },
-                            readOnly = isPreFilled
-                        )
+                        TitledTextField(label = "부품명", value = partNameState, onValueChange = { partNameState = it }, readOnly = isPreFilled)
                         Spacer(modifier = Modifier.height(16.dp))
-                        TitledTextField(
-                            label = "부품코드",
-                            value = partCodeState,
-                            onValueChange = { partCodeState = it },
-                            readOnly = isPreFilled
-                        )
+                        TitledTextField(label = "부품코드", value = partCodeState, onValueChange = { partCodeState = it }, readOnly = isPreFilled)
                         Spacer(modifier = Modifier.height(16.dp))
                         val safetyStockValue = if (isPreFilled) safetyStockQtyState.toString() else "0"
-                        TitledTextField(
-                            label = "안전재고",
-                            value = safetyStockValue,
-                            onValueChange = {},
-                            readOnly = true
-                        )
+                        TitledTextField(label = "안전재고", value = safetyStockValue, onValueChange = {}, readOnly = true)
                         Spacer(modifier = Modifier.height(16.dp))
-                        TitledTextField(
-                            label = "신청 수량",
-                            value = requestQuantity,
-                            onValueChange = { requestQuantity = it },
-                            keyboardType = KeyboardType.Number
-                        )
+                        TitledTextField(label = "신청 수량", value = requestQuantity, onValueChange = { requestQuantity = it }, keyboardType = KeyboardType.Number)
                     }
                 }
-
-            }
-
-            // ✅ 하단 고정 버튼
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFFF5F5F7))
-                    .padding(start = 16.dp, end = 16.dp, bottom = 48.dp, top = 12.dp) // ✅ 하단 띄움
-                    .align(Alignment.BottomCenter)
-            ) {
+                Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = {
                         val quantity = requestQuantity.toIntOrNull()
                         if (isFormValid && quantity != null) {
-                            viewModel.createPurchaseOrder(
-                                partIdState.toLong(),
-                                partNameState,
-                                partCodeState,
-                                priceState,
-                                quantity
-                            )
+                            viewModel.createPurchaseOrder(partIdState.toLong(), partNameState, partCodeState, priceState, quantity)
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF111827)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF)),
                     enabled = isFormValid && !creationState.isLoading
                 ) {
                     Text("신청하기", color = Color.White, fontSize = 16.sp)
                 }
             }
 
-            // 로딩 표시
             if (creationState.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }

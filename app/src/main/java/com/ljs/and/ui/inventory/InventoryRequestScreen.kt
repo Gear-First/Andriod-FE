@@ -90,23 +90,18 @@ fun InventoryRequestScreen(
         }
 
         // 하단 버튼
-        Box(
+        Button(
+            onClick = { 
+                navController.navigate(Screen.InventoryRequestForm.route)
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFF5F5F7)) // ✅ 회색 배경
                 .padding(16.dp)
-                .align(Alignment.BottomCenter)
+                .align(Alignment.BottomCenter),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
         ) {
-            Button(
-                onClick = {
-                    navController.navigate(Screen.InventoryRequestForm.route)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF111827))
-            ) {
-                Text("재고 신청", modifier = Modifier.padding(vertical = 8.dp), color = Color.White)
-            }
+            Text("재고 신청", modifier = Modifier.padding(vertical = 8.dp), color = Color.White)
         }
     }
 }

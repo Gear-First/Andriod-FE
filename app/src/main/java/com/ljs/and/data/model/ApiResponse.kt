@@ -12,3 +12,7 @@ data class ApiResponse<T>(
     @SerializedName("data")
     val data: T?
 )
+
+data class ItemsResponse<T>(
+    val items: List<T>
+)

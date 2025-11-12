@@ -19,13 +19,19 @@ class FakeReceivingApiService : ReceivingApiService {
     // 변경된 상태를 유지하기 위해 MutableList로 수정합니다.
     private var dummyReceivingNoteDetails: MutableList<ReceivingNoteDetail>
     private var dummyReceivingNotes: MutableList<ReceivingNote>
+    private val dummyProducts: List<Product>
 
     init {
+        dummyProducts = (1..20).map {
+            Product(id = it.toLong(), lot = "LOT-NO-$it", code = "PART-NO-$it", name = "부품 $it")
+        }
+
         val initialDetails = (1..10).map {
             val lines = (1..5).map { lineIndex ->
+                val product = dummyProducts.random()
                 ReceivingLine(
                     lineId = (it * 10 + lineIndex).toLong(),
-                    product = Product(id = lineIndex.toLong(), code = "P00$lineIndex", name = "더미 상품 $lineIndex"),
+                    product = product,
                     orderedQty = lineIndex * 10,
                     inspectedQty = 0,
                     status = "PENDING", // UI 코드와 상태 문자열 일치
@@ -73,9 +79,10 @@ class FakeReceivingApiService : ReceivingApiService {
         delay(500)
         val newNoteId = (dummyReceivingNoteDetails.maxOfOrNull { it.noteId } ?: 0) + 1
         val newLines = request.lines.mapIndexed { index, line ->
+            val product = dummyProducts.find { it.id == line.productId } ?: Product(id = line.productId, lot = "LOT-New", code = "P-New", name = "새 상품")
             ReceivingLine(
                 lineId = newNoteId * 10 + index,
-                product = Product(id = line.productId, code = "P-New", name = "새 상품"),
+                product = product,
                 orderedQty = line.orderedQty,
                 inspectedQty = 0,
                 status = "PENDING",
@@ -214,8 +221,17 @@ class FakeReceivingApiService : ReceivingApiService {
     }
 
     override suspend fun getReceivingNotes(q: String?, status: String, date: String?, dateFrom: String?, dateTo: String?, warehouseCode: String?, page: Int, size: Int): com.ljs.and.data.model.ApiResponse<PagedReceivingNotes> {
-        val filtered = dummyReceivingNotes.filter { it.status.equals(status, ignoreCase = true) }
-        return getPaginatedNotes(filtered, page, size)
+        val filteredByStatus = dummyReceivingNotes.filter { it.status.equals(status, ignoreCase = true) }
+        val filteredByQuery = if (q.isNullOrBlank()) {
+            filteredByStatus
+        } else {
+            filteredByStatus.filter { note ->
+                dummyReceivingNoteDetails.find { it.noteId == note.noteId }?.lines?.any { line ->
+                    line.product.lot.contains(q, ignoreCase = true)
+                } ?: false
+            }
+        }
+        return getPaginatedNotes(filteredByQuery, page, size)
     }
 
     override suspend fun getNotDoneReceivingNotes(date: String?, dateFrom: String?, dateTo: String?, warehouseCode: String?, page: Int, size: Int): com.ljs.and.data.model.ApiResponse<PagedReceivingNotes> {

@@ -19,13 +19,19 @@ class FakeReleasingApiService : ReleasingApiService {
 
     private var dummyShippingNoteDetails: MutableList<ShippingNoteDetail>
     private var dummyShippingNotes: MutableList<ShippingNote>
+    private val dummyProducts: List<Product>
 
     init {
+        dummyProducts = (1..20).map {
+            Product(id = it.toLong(), lot = "LOT-NO-$it", code = "PART-NO-$it", name = "부품 $it")
+        }
+
         val initialDetails = (1..10).map {
             val lines = (1..5).map { lineIndex ->
+                val product = dummyProducts.random()
                 ShippingLine(
                     lineId = (it * 10 + lineIndex).toLong(),
-                    product = Product(id = lineIndex.toLong(), code = "P00$lineIndex", name = "더미 상품 $lineIndex"),
+                    product = product,
                     orderedQty = lineIndex * 10,
                     pickedQty = 0,
                     status = "PENDING"
@@ -72,9 +78,10 @@ class FakeReleasingApiService : ReleasingApiService {
         delay(500)
         val newNoteId = (dummyShippingNoteDetails.maxOfOrNull { it.noteId } ?: 0) + 1
         val newLines = request.lines.mapIndexed { index, line ->
+            val product = dummyProducts.find { it.id == line.productId } ?: Product(id = line.productId, lot = "LOT-New", code = "P-New", name = "새 상품")
             ShippingLine(
                 lineId = newNoteId * 10 + index,
-                product = Product(id = line.productId, code = "P-New", name = "새 상품"),
+                product = product,
                 orderedQty = line.orderedQty,
                 pickedQty = 0,
                 status = "PENDING"

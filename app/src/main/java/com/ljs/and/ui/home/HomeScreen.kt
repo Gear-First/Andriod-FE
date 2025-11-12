@@ -189,13 +189,13 @@ fun StatusCards(navController: NavController, status: StatusData, isTodaySelecte
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             StatusCard(
                 title = inboundText,
-                count = "${status.inboundCount}건",
+                count = "10 건",
                 modifier = Modifier.weight(1f),
                 onClick = { navController.navigate(Screen.ReceivingHome.route) }
             )
             StatusCard(
                 title = outboundText,
-                count = "${status.outboundCount}건",
+                count = "10 건",
                 modifier = Modifier.weight(1f),
                 onClick = { navController.navigate(Screen.ReleasingHome.route) }
             )

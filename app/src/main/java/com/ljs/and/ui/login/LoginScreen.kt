@@ -4,6 +4,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,10 +16,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.ljs.and.R
 import com.ljs.and.data.model.AuthManager
 import com.ljs.and.data.model.PkceUtil
 import java.util.UUID
@@ -37,7 +39,7 @@ fun LoginScreen(navController: NavController) {
         AuthManager.codeVerifier = codeVerifier
         AuthManager.state = state
 
-        val uri = Uri.parse("http://34.120.215.23/auth/oauth2/authorize").buildUpon()
+        val uri = Uri.parse("http://gearfirst-auth-mobile.duckdns.org/auth/oauth2/authorize").buildUpon()
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("client_id", "gearfirst-client-mobile")
             .appendQueryParameter("redirect_uri", "gearfirst://callback")
@@ -46,6 +48,10 @@ fun LoginScreen(navController: NavController) {
             .appendQueryParameter("code_challenge_method", "S256")
             .appendQueryParameter("state", state)
             .build()
+
+
+        android.util.Log.d("LoginScreen", "Auth URL = $uri")
+
 
         val customTabsIntent = CustomTabsIntent.Builder().build()
         customTabsIntent.launchUrl(context, uri)
@@ -63,11 +69,10 @@ fun LoginScreen(navController: NavController) {
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = "Gear First",
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF4A80F0)
+            Image(
+                painter = painterResource(id = R.drawable.gearfirst_logo),
+                contentDescription = "Gearfirst Logo",
+                modifier = Modifier.fillMaxWidth(0.6f)
             )
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -77,10 +82,10 @@ fun LoginScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4A80F0))
+                shape = RoundedCornerShape(30.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF111827))
             ) {
-                Text("OAuth2 로그인", color = Color.White, fontSize = 18.sp)
+                Text("로그인", color = Color.White, fontSize = 18.sp)
             }
         }
     }

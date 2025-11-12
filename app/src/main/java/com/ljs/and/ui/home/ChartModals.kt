@@ -57,7 +57,7 @@ fun InventoryChartModal(inventoryData: List<InventoryItemData>, onDismiss: () ->
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("2025.10.01 상위 품목", fontSize = 16.sp, color = Color.Gray)
+                Text("2025.11.12 상위 품목", fontSize = 16.sp, color = Color.Gray)
                 Spacer(modifier = Modifier.height(24.dp))
                 DonutChart(inventoryData, total)
                 Spacer(modifier = Modifier.height(24.dp))
@@ -154,7 +154,16 @@ fun InventoryLegend(data: List<InventoryItemData>) {
 }
 
 @Composable
-fun WeeklyInOutChartModal(weeklyData: List<InOutData>, dateRange: String, onDismiss: () -> Unit) {
+fun WeeklyInOutChartModal(dateRange: String, onDismiss: () -> Unit) {
+    val weeklyData = listOf(
+        InOutData(day = "월", inbound = 120f, outbound = 80f),
+        InOutData(day = "화", inbound = 150f, outbound = 90f),
+        InOutData(day = "수", inbound = 180f, outbound = 110f),
+        InOutData(day = "목", inbound = 130f, outbound = 70f),
+        InOutData(day = "금", inbound = 200f, outbound = 150f),
+        InOutData(day = "토", inbound = 90f, outbound = 60f),
+        InOutData(day = "일", inbound = 70f, outbound = 50f)
+    )
     Log.d("WeeklyChartData", "Data for chart: $weeklyData")
 
     Dialog(onDismissRequest = onDismiss) {

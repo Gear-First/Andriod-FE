@@ -120,7 +120,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                 onDismiss = { viewModel.onEvent(HomeEvent.HideChart) }
             )
             ChartType.WEEKLY -> WeeklyInOutChartModal(
-                weeklyData = uiState.weeklyInOutData,
+//                weeklyData = uiState.weeklyInOutData,
                 dateRange = uiState.weeklyChartDateRange,
                 onDismiss = { viewModel.onEvent(HomeEvent.HideChart) }
             )
@@ -189,13 +189,13 @@ fun StatusCards(navController: NavController, status: StatusData, isTodaySelecte
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             StatusCard(
                 title = inboundText,
-                count = "${status.inboundCount}건",
+                count = "3 건",
                 modifier = Modifier.weight(1f),
                 onClick = { navController.navigate(Screen.ReceivingHome.route) }
             )
             StatusCard(
                 title = outboundText,
-                count = "${status.outboundCount}건",
+                count = "7 건",
                 modifier = Modifier.weight(1f),
                 onClick = { navController.navigate(Screen.ReleasingHome.route) }
             )

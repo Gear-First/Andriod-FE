@@ -11,24 +11,24 @@ class SearchRepository(private val searchApiService: SearchApiService) {
     suspend fun getSearchList(query: String?, warehouseCode: String?): List<SearchItem> = coroutineScope {
         val receivingNotesDeferred = async {
             searchApiService.getReceivingNotes(
-                query = query, 
-                warehouseCode = warehouseCode, 
-                status = null, 
-                dateFrom = null, 
+                query = query,
+                warehouseCode = warehouseCode,
+                status = null,
+                dateFrom = null,
                 dateTo = null
             )
         }
         val shippingNotesDeferred = async {
             searchApiService.getShippingNotes(
-                query = query, 
-                warehouseCode = warehouseCode, 
-                status = null, 
-                dateFrom = null, 
+                query = query,
+                warehouseCode = warehouseCode,
+                status = null,
+                dateFrom = null,
                 dateTo = null
             )
         }
 
-        val receivingItems = receivingNotesDeferred.await().data.items.map {
+        val receivingItems = receivingNotesDeferred.await().data?.items?.map {
             SearchItem(
                 type = "입고",
                 no = it.receivingNo,
@@ -37,9 +37,9 @@ class SearchRepository(private val searchApiService: SearchApiService) {
                 status = it.status,
                 requestedAt = it.requestedAt
             )
-        }
+        } ?: emptyList()
 
-        val shippingItems = shippingNotesDeferred.await().data.items.map {
+        val shippingItems = shippingNotesDeferred.await().data?.items?.map {
             SearchItem(
                 type = "출고",
                 no = it.shippingNo,
@@ -48,17 +48,17 @@ class SearchRepository(private val searchApiService: SearchApiService) {
                 status = it.status,
                 requestedAt = it.requestedAt
             )
-        }
+        } ?: emptyList()
 
         (receivingItems + shippingItems).sortedByDescending { it.requestedAt }
     }
 
     suspend fun getInventoryList(query: String?, warehouseCode: String?): List<InventoryItem> {
         return searchApiService.getInventoryOnHand(
-            query = query, 
-            warehouseCode = warehouseCode, 
-            minQty = null, 
+            query = query,
+            warehouseCode = warehouseCode,
+            minQty = null,
             maxQty = null
-        ).data.items
+        ).data?.items ?: emptyList()
     }
 }

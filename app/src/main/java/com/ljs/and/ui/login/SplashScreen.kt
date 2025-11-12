@@ -22,13 +22,13 @@ fun SplashScreen(navController: NavController) {
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        delay(500)
-        val destination = if (TokenManager.getAccessToken() != null) {
-            Screen.Home.route
-        } else {
-            Screen.Login.route
-        }
-//        val destination = Screen.Home.route // Directly navigate to home
+        delay(1500) // 1.5 seconds delay
+//        val destination = if (TokenManager.getAccessToken() != null) {
+//            Screen.Home.route
+//        } else {
+//            Screen.Login.route
+//        }
+        val destination = Screen.Home.route // Directly navigate to home
         navController.navigate(destination) {
             popUpTo(Screen.Splash.route) { inclusive = true }
         }
@@ -37,20 +37,14 @@ fun SplashScreen(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
-    )
-
-//    Box(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            .background(Color.White),
-//        contentAlignment = Alignment.Center
-//    ) {
-//        Text(
-//            text = "Gear First",
-//            fontSize = 48.sp,
-//            fontWeight = FontWeight.Bold,
-//            color = Color(0xFF111827)
-//        )
-//    }
+            .background(Color.White),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Gear First",
+            fontSize = 48.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF4A80F0)
+        )
+    }
 }

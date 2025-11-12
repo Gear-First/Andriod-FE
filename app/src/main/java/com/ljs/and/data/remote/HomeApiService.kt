@@ -1,9 +1,7 @@
 package com.ljs.and.data.remote
 
 import com.ljs.and.data.model.NoteCountsResponse
-import com.ljs.and.data.model.ReceivingNotesResponse
 import com.ljs.and.data.model.ReceivingResponse
-import com.ljs.and.data.model.ShippingNotesResponse
 import com.ljs.and.data.model.ShippingResponse
 import retrofit2.http.GET
 import retrofit2.http.Query
@@ -34,20 +32,4 @@ interface HomeApiService {
     suspend fun getNoteCounts(
         @Query("requestDate") requestDate: String
     ): NoteCountsResponse
-
-    @GET("api/v1/receiving/notes")
-    suspend fun getReceivingNotes(
-        @Query("status") status: String,
-        @Query("dateFrom") dateFrom: String?,
-        @Query("dateTo") dateTo: String?,
-        @Query("warehouseCode") warehouseCode: String?
-    ): ReceivingNotesResponse
-
-    @GET("api/v1/shipping/notes")
-    suspend fun getShippingNotes(
-        @Query("status") status: String,
-        @Query("dateFrom") dateFrom: String?,
-        @Query("dateTo") dateTo: String?,
-        @Query("warehouseCode") warehouseCode: String?
-    ): ShippingNotesResponse
 }

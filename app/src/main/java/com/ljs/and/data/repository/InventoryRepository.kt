@@ -5,7 +5,7 @@ import com.ljs.and.data.model.InventoryOnHandResponse
 import com.ljs.and.data.model.PurchaseOrder
 import com.ljs.and.data.model.PurchaseOrderRequest
 import com.ljs.and.data.model.PurchaseOrderResponse
-import com.ljs.and.data.model.PaginatedData
+import com.ljs.and.data.model.common.PaginatedData
 import com.ljs.and.data.remote.InventoryApiService
 import com.ljs.and.data.remote.PurchaseOrderApiService
 import com.ljs.and.data.remote.RetrofitClient

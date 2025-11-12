@@ -1,4 +1,4 @@
-package com.ljs.and.data.model
+package com.ljs.and.data.model.common
 
 import com.google.gson.annotations.SerializedName
 

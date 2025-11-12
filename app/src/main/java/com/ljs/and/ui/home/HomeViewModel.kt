@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ljs.and.data.model.InOutData
 import com.ljs.and.data.model.InventoryOnHandItem
 import com.ljs.and.data.model.PurchaseOrder
 import com.ljs.and.data.model.UserManager
@@ -26,8 +25,7 @@ import java.util.Locale
 // --- Data Classes (DTOs) ---
 
 data class InventoryItemData(val name: String, val quantity: Int, val color: Color)
-// InOutData is already defined in HomeDto.kt, so we can remove it from here if it's not needed.
-// data class InOutData(val day: String, val inbound: Float, val outbound: Float)
+data class InOutData(val day: String, val inbound: Float, val outbound: Float)
 data class NotificationItem(val title: String, val content: String, val time: String, val type: NotificationType)
 enum class NotificationType {
     NOTICE,
@@ -131,50 +129,41 @@ class HomeViewModel : ViewModel() {
 
     private fun loadWeeklyInOutData(baseDate: Date) {
         viewModelScope.launch {
-            homeRepository.getWeeklyInOutData(baseDate = baseDate, warehouseCode = "수원")
-                .onSuccess {
-                    val calendar = Calendar.getInstance()
+            try {
+                val dailyData = homeRepository.getWeeklyInOutData(baseDate = baseDate, warehouseCode = "수원")
+                val daySdf = SimpleDateFormat("EEE", Locale.KOREAN)
+                val dateSdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
-                    val sortedData = it.sortedBy { data ->
-                        val date = apiSdf.parse(data.day)
-                        calendar.time = date
-                        calendar.get(Calendar.DAY_OF_WEEK)
-                    }.map {
-                        it.copy(day = getKoreanDayOfWeek(it.day))
+                val weeklyData = dailyData.entries
+                    .map { entry ->
+                        val date = dateSdf.parse(entry.key)
+                        val dayName = daySdf.format(date!!)
+                        val calendar = Calendar.getInstance().apply { time = date }
+                        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+                        Triple(dayOfWeek, dayName, InOutData(
+                            day = dayName,
+                            inbound = entry.value.first.toFloat(),
+                            outbound = entry.value.second.toFloat()
+                        ))
                     }
+                    .sortedBy { it.first } // Sort by day of the week
+                    .map { it.third } // Extract the InOutData
 
-                    calendar.time = baseDate
-                    calendar.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
-                    val fromDate = sdf.format(calendar.time)
-                    calendar.set(Calendar.DAY_OF_WEEK, Calendar.SATURDAY)
-                    val toDate = sdf.format(calendar.time)
-                    
-                    _uiState.update {
-                        it.copy(
-                            weeklyInOutData = sortedData,
-                            weeklyChartDateRange = "$fromDate - $toDate"
-                        )
-                    }
-                }.onFailure {
-                    Log.e("HomeViewModel", "Error loading weekly in/out data", it)
-                    _uiState.update { it.copy(weeklyInOutData = emptyList()) }
-                }
-        }
-    }
-    
-    private fun getKoreanDayOfWeek(dateString: String): String {
-        val date = apiSdf.parse(dateString)
-        val calendar = Calendar.getInstance()
-        calendar.time = date!!
-        return when (calendar.get(Calendar.DAY_OF_WEEK)) {
-            Calendar.SUNDAY -> "일"
-            Calendar.MONDAY -> "월"
-            Calendar.TUESDAY -> "화"
-            Calendar.WEDNESDAY -> "수"
-            Calendar.THURSDAY -> "목"
-            Calendar.FRIDAY -> "금"
-            Calendar.SATURDAY -> "토"
-            else -> ""
+                val calendar = Calendar.getInstance()
+                calendar.time = baseDate
+                val toDate = sdf.format(calendar.time)
+                calendar.add(Calendar.DAY_OF_YEAR, -6)
+                val fromDate = sdf.format(calendar.time)
+
+                _uiState.update { it.copy(
+                    weeklyInOutData = weeklyData,
+                    weeklyChartDateRange = "$fromDate - $toDate"
+                ) }
+
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading weekly in/out data", e)
+                _uiState.update { it.copy(weeklyInOutData = emptyList()) }
+            }
         }
     }
 

@@ -311,10 +311,11 @@ fun PendingCard(item: ShippingNote, onStartPicking: () -> Unit) {
                         .width(330.dp)
                         .height(44.dp),
                     shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF111827
+                    ))
                 ) {
                     Text(
-                        "피킹 시작",
+                        "검수 시작",
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )

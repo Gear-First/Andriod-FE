@@ -137,7 +137,8 @@ fun SearchResultScreen(
 @Composable
 fun ReceivingResultCard(item: ReceivingNote, onClick: () -> Unit) {
     val statusColor = when (item.status.lowercase()) {
-        "completed_issue", "completed_ok" -> Color(0xFF007BFF) // 파란색
+        "completed_issue" -> Color.Green
+        "completed_ok" -> Color(0xFF007BFF) // 파란색
         "pending", "in_progress" -> Color(0xFFFF4C4C) // 빨간색
         else -> Color.Gray
     }

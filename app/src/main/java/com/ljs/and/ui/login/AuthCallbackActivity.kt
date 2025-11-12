@@ -29,7 +29,7 @@ class AuthCallbackActivity : ComponentActivity() {
             .build()
 
         Retrofit.Builder()
-            .baseUrl("http://gearfirst-auth-mobile.duckdns.org/auth/")
+            .baseUrl("http://34.120.215.23/auth/")
             .client(httpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -75,7 +75,7 @@ class AuthCallbackActivity : ComponentActivity() {
                         // 3. 사용자 정보 저장 (이메일은 동적, 나머지는 하드코딩)
                         UserManager.email = userInfo.sub
                         UserManager.userName = "이지수" // 임시 하드코딩
-                        UserManager.warehouseName = "수원 창고" // 임시 하드코딩
+                        UserManager.warehouseName = "수원" // 임시 하드코딩
 
                         Log.d("AuthCallbackActivity", "User email stored: ${userInfo.sub}")
 

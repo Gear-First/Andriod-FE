@@ -1,8 +1,5 @@
 package com.ljs.and.data.remote
 
-import com.ljs.and.data.model.ApiResponse
-import com.ljs.and.data.model.InOutData
-import com.ljs.and.data.model.TopInventoryItemDto
 import com.ljs.and.data.model.NoteCountsResponse
 import com.ljs.and.data.model.ReceivingNotesResponse
 import com.ljs.and.data.model.ReceivingResponse
@@ -10,7 +7,6 @@ import com.ljs.and.data.model.ShippingNotesResponse
 import com.ljs.and.data.model.ShippingResponse
 import retrofit2.http.GET
 import retrofit2.http.Query
-import java.util.Date
 
 interface HomeApiService {
 
@@ -54,13 +50,4 @@ interface HomeApiService {
         @Query("dateTo") dateTo: String?,
         @Query("warehouseCode") warehouseCode: String?
     ): ShippingNotesResponse
-
-    @GET("api/v1/summary/top-inventory")
-    suspend fun getTopInventoryItems(): ApiResponse<List<TopInventoryItemDto>>
-
-    @GET("api/v1/summary/weekly-in-out")
-    suspend fun getWeeklyInOutData(
-        @Query("baseDate") baseDate: String,
-        @Query("warehouseCode") warehouseCode: String
-    ): ApiResponse<List<InOutData>>
 }

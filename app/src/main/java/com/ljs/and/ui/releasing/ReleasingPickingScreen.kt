@@ -218,7 +218,7 @@ fun PickingTopAppBar(
                     )
                 )
             } else {
-                Text(if(isReadOnly) "출고 상세" else "검수 중", fontWeight = FontWeight.Bold)
+                Text(if(isReadOnly) "출고 상세" else "피킹 중", fontWeight = FontWeight.Bold)
             }
         },
         navigationIcon = {
@@ -295,9 +295,9 @@ fun PickingItemCard(
     val isShortage = item.status == "SHORTAGE"
 
     val buttonText = when {
-        isPicked -> "검수 완료"
+        isPicked -> "피킹완료"
         isShortage -> "부족"
-        else -> "검수 전"
+        else -> "피킹 전"
     }
 
     val buttonColor = when {
@@ -329,7 +329,7 @@ fun PickingItemCard(
                 Text("${item.product.name ?: ""} / ${item.product.lot ?: ""}", fontSize = 14.sp)
                 Text("출고번호: ${shippingNoteDetail.shippingNo}", fontSize = 12.sp, color = Color.Gray)
                 Text("요청수량: ${item.orderedQty}", fontSize = 12.sp, color = Color.Gray)
-                Text("검수수량: ${item.pickedQty}", fontSize = 12.sp, color = Color.Gray)
+                Text("피킹수량: ${item.pickedQty}", fontSize = 12.sp, color = Color.Gray)
             }
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -384,7 +384,7 @@ fun PickingBottomBar(
                     onClick = onConfirm,
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF111827))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007BFF))
                 ) {
                     Text("확인", color = Color.White)
                 }
@@ -420,7 +420,7 @@ fun PickingBottomBar(
                     ),
                     enabled = isCompleteEnabled
                 ) {
-                    Text("검수 완료", color = Color.White)
+                    Text("피킹 완료", color = Color.White)
                 }
             }
         }

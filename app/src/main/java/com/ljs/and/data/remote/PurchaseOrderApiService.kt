@@ -8,8 +8,6 @@ import com.ljs.and.data.model.PaginatedData
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
-import retrofit2.http.PUT
-import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface PurchaseOrderApiService {
@@ -36,10 +34,4 @@ interface PurchaseOrderApiService {
         @Query("page") page: Int?,
         @Query("size") size: Int?
     ): ApiResponse<PaginatedData<PurchaseOrder>>
-
-    @PUT("api/v1/purchase-orders/{orderId}/status")
-    suspend fun updateOrderStatus(
-        @Path("orderId") orderId: Long,
-        @Query("status") status: String
-    ): ApiResponse<PurchaseOrder>
 }

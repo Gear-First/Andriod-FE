@@ -1,2 +1,12 @@
+# Android Studio/Gradle 빌드 결과물 (필수)
+/build/
+/app/build/
+.gradle/
+.kotlin/
+
+# IDE 설정 및 개인 파일
+.idea/
+*.iml
+
 # Local properties file (SDK path)
 local.properties

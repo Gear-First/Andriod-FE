@@ -253,9 +253,53 @@ data class LogItem(val id: Int, val title: String, val content: String, val time
 data class NotificationItem(val id: Int, val title: String, val content: String, val time: String, val type: NotificationType)
 
 fun getDummyLogs(): List<LogItem> {
-    return (1..25).map { LogItem(it, "입고 완료", "상품 A, 수량: 100개", "${it}분 전", NotificationType.INBOUND) } +
-            (26..50).map { LogItem(it, "출고 완료", "상품 B, 수량: 50개", "${it}분 전", NotificationType.OUTBOUND) }
+    val random = java.util.Random()
+    val inboundTitles = listOf("입고 완료", "입고 지연", "입고 준비중", "입고 확정")
+    val outboundTitles = listOf("출고 완료", "출고 지연", "출고 요청", "출고 확정")
+    val items = mutableListOf<LogItem>()
+
+    // 입고 로그 15개 생성
+    repeat(15) { i ->
+        val title = inboundTitles.random()
+        val qty = (50..500).random()
+        val delay = listOf("정상", "지연", "부분 입고").random()
+        val time = listOf("${(1..59).random()}분 전", "${(1..12).random()}시간 전", "어제").random()
+
+        items.add(
+            LogItem(
+                id = i + 1,
+                title = title,
+                content = "상품 IN-${1000 + i}, 수량: ${qty}개 (${delay})",
+                timestamp = time,
+                type = NotificationType.INBOUND
+            )
+        )
+    }
+
+    // 출고 로그 15개 생성
+    repeat(15) { i ->
+        val title = outboundTitles.random()
+        val qty = (10..200).random()
+        val delay = listOf("정상", "지연", "부분 출고").random()
+        val time = listOf("${(1..59).random()}분 전", "${(1..12).random()}시간 전", "어제").random()
+
+        items.add(
+            LogItem(
+                id = i + 100,
+                title = title,
+                content = "상품 OUT-${2000 + i}, 수량: ${qty}개 (${delay})",
+                timestamp = time,
+                type = NotificationType.OUTBOUND
+            )
+        )
+    }
+
+    // 입출고 로그 섞기
+    items.shuffle()
+
+    return items
 }
+
 
 fun getDummyNotifications(): List<NotificationItem> {
     return listOf(

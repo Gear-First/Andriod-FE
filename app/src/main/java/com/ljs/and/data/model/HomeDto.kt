@@ -68,3 +68,37 @@ data class NoteCountsData(
     @SerializedName("receivingCount") val receivingCount: Int,
     @SerializedName("shippingCount") val shippingCount: Int
 )
+
+data class ReceivingNotesResponse(
+    @SerializedName("status") val status: Int,
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String,
+    @SerializedName("data") val data: ReceivingNotesData?
+)
+
+data class ReceivingNotesData(
+    @SerializedName("items") val items: List<ReceivingItem>,
+    @SerializedName("page") val page: Int,
+    @SerializedName("size") val size: Int,
+    @SerializedName("total") val total: Long
+)
+
+data class ShippingNotesResponse(
+    @SerializedName("status") val status: Int,
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String,
+    @SerializedName("data") val data: ShippingNotesData?
+)
+
+data class ShippingNotesData(
+    @SerializedName("items") val items: List<ShippingItem>,
+    @SerializedName("page") val page: Int,
+    @SerializedName("size") val size: Int,
+    @SerializedName("total") val total: Long
+)
+
+data class InOutData(
+    val day: String,
+    val inbound: Float,
+    val outbound: Float
+)

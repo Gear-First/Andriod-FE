@@ -4,7 +4,7 @@ import com.ljs.and.data.model.ApiResponse
 import com.ljs.and.data.model.PurchaseOrder
 import com.ljs.and.data.model.PurchaseOrderRequest
 import com.ljs.and.data.model.PurchaseOrderResponse
-import com.ljs.and.data.model.common.PaginatedData
+import com.ljs.and.data.model.PaginatedData
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST

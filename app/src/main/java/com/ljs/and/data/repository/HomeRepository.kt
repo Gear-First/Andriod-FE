@@ -1,7 +1,10 @@
 package com.ljs.and.data.repository
 
+import com.ljs.and.data.model.InOutData
 import com.ljs.and.data.model.NoteCountsData
 import com.ljs.and.data.remote.HomeApiService
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -24,67 +27,76 @@ class HomeRepository(private val homeApiService: HomeApiService) {
         }
     }
 
-    suspend fun getWeeklyInOutData(baseDate: Date, warehouseCode: String?): Map<String, Pair<Int, Int>> {
-        val calendar = Calendar.getInstance()
-        calendar.time = baseDate
-        val dateToString = dateFormat.format(calendar.time)
-        calendar.add(Calendar.DAY_OF_YEAR, -6)
-        val dateFromString = dateFormat.format(calendar.time)
+    suspend fun getWeeklyInOutData(baseDate: Date, warehouseCode: String): Result<List<InOutData>> {
+        return try {
+            val calendar = Calendar.getInstance()
+            calendar.time = baseDate
 
-        val shippingResponse = homeApiService.getShippingNotes(
-            dateFrom = null,
-            dateTo = null,
-            warehouseCode = warehouseCode
-        )
+            // Find Sunday of the week of baseDate
+            calendar.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
+            val dateFrom = dateFormat.format(calendar.time)
 
-        val receivingResponse = homeApiService.getReceivingNotes(
-            dateFrom = null,
-            dateTo = null,
-            warehouseCode = warehouseCode
-        )
+            // Find Saturday of the week of baseDate
+            calendar.set(Calendar.DAY_OF_WEEK, Calendar.SATURDAY)
+            val dateTo = dateFormat.format(calendar.time)
 
-        val dailyData = mutableMapOf<String, Pair<Int, Int>>()
-        val dates = getDatesBetween(dateFromString, dateToString)
-        dates.forEach { date ->
-            dailyData[date] = Pair(0, 0)
-        }
-
-        val dateStringsInPeriod = getDatesBetween(dateFromString, dateToString)
-
-        receivingResponse.data?.items?.forEach { item ->
-            item.expectedReceiveDate?.let {
-                val date = it.substring(0, 10)
-                if (dateStringsInPeriod.contains(date)) {
-                    val current = dailyData[date]!!
-                    dailyData[date] = Pair(current.first + item.totalQty, current.second)
+            coroutineScope {
+                val receivingDeferred = async {
+                    homeApiService.getReceivingNotes(
+                        status = "all",
+                        dateFrom = dateFrom,
+                        dateTo = dateTo,
+                        warehouseCode = warehouseCode
+                    )
                 }
-            }
-        }
 
-        shippingResponse.data?.items?.forEach { item ->
-            item.expectedShipDate?.let {
-                val date = it.substring(0, 10)
-                if (dateStringsInPeriod.contains(date)) {
-                    val current = dailyData[date]!!
-                    dailyData[date] = Pair(current.first, current.second + item.totalQty)
+                val shippingDeferred = async {
+                    homeApiService.getShippingNotes(
+                        status = "all",
+                        dateFrom = dateFrom,
+                        dateTo = dateTo,
+                        warehouseCode = warehouseCode
+                    )
                 }
-            }
-        }
-        return dailyData
-    }
 
-    private fun getDatesBetween(startDate: String, endDate: String): List<String> {
-        val dates = mutableListOf<String>()
-        val start = dateFormat.parse(startDate)
-        val end = dateFormat.parse(endDate)
-        val cal = Calendar.getInstance()
-        if (start != null) {
-            cal.time = start
+                val receivingResponse = receivingDeferred.await()
+                val shippingResponse = shippingDeferred.await()
+
+                val dailyTotals = mutableMapOf<String, Pair<Float, Float>>()
+                val tempCal = Calendar.getInstance()
+                tempCal.time = dateFormat.parse(dateFrom)!!
+                for (i in 0..6) {
+                    dailyTotals[dateFormat.format(tempCal.time)] = Pair(0f, 0f)
+                    tempCal.add(Calendar.DAY_OF_YEAR, 1)
+                }
+
+                receivingResponse.data?.items?.forEach { item ->
+                    val date = item.requestedAt.substring(0, 10)
+                    if (dailyTotals.containsKey(date)) {
+                        val current = dailyTotals[date]!!
+                        dailyTotals[date] = Pair(current.first + item.totalQty, current.second)
+                    }
+                }
+
+                shippingResponse.data?.items?.forEach { item ->
+                    val date = item.requestedAt.substring(0, 10)
+                    if (dailyTotals.containsKey(date)) {
+                        val current = dailyTotals[date]!!
+                        dailyTotals[date] = Pair(current.first, current.second + item.totalQty)
+                    }
+                }
+                
+                val inOutDataList = dailyTotals.map { (date, totals) ->
+                    InOutData(
+                        day = date,
+                        inbound = totals.first,
+                        outbound = totals.second
+                    )
+                }
+                Result.success(inOutDataList)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
-        while (end != null && (cal.time.before(end) || cal.time == end)) {
-            dates.add(dateFormat.format(cal.time))
-            cal.add(Calendar.DATE, 1)
-        }
-        return dates
     }
 }
